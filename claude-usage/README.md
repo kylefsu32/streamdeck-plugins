@@ -66,31 +66,65 @@ Compare the session and week rows against the percentages `/usage` reports in
 Claude Code. If `/usage` says 50% and the session row reads 20M, your session
 ceiling is about 40M. Enter that in the property inspector.
 
-Leave a ceiling empty and that ring stays dark while the centre falls back to a
+The report also breaks the window down per model, which is what a model-specific
+key needs — both its ceiling and the substring to filter on:
+
+```
+per model — history (60d)
+model                            effective   calls    share
+───────────────────────────────────────────────────────────
+claude-opus-4-8                    181.27M    2529      45%
+claude-opus-5                      160.04M    3849      40%
+claude-fable-5                      62.34M    1700      15%
+claude-haiku-4-5-20251001           189.5K      23       0%
+```
+
+Pass a day count to widen the history: `npm run report -- 60`.
+
+Leave a ceiling empty and that ring stays dark while the readout falls back to a
 raw token count — the key is still useful before you calibrate.
 
 ## Actions
 
 ### Usage Rings
 
-Two concentric rings. Past 100% the ring turns red and a thinner overshoot arc
-wraps back around on top, the way the Watch does it.
+A key rests as rings alone. **Pressing it reveals the readout, pressing again
+hides it** — so a wall of keys stays quiet until you ask one a question. Past
+100% the ring turns red and a thinner overshoot arc wraps back around on top,
+the way the Watch does it.
 
-| Setting         | Default | Notes                                          |
-| --------------- | ------- | ---------------------------------------------- |
-| Session window  | 5h      | Rolling, not aligned to Claude's session start  |
-| Session ceiling | unset   | Effective tokens equal to 100%                  |
-| Week window     | 7d      | Rolling                                         |
-| Week ceiling    | unset   | Effective tokens equal to 100%                  |
-| Centre reads    | Session % | Session % / Week % / tokens / nothing        |
-| Refresh         | 20s     | 5–120s                                          |
+Each key is either **one ring** or **two**, and every ring is configured
+independently:
 
-Pressing the key cycles the centre readout. The rings never change on press.
+| Setting  | Notes                                                             |
+| -------- | ----------------------------------------------------------------- |
+| Window   | In hours. `5` for the session, `168` for a week, `24` for a day    |
+| Ceiling  | Effective tokens that mean 100%. Empty leaves the ring dark        |
+| Model    | Case-insensitive substring of the model id. Empty counts every one |
+| Colour   | Coral, teal, violet, amber, green, blue                            |
+
+That is what makes single-ring keys worth having — one key per thing you care
+about, each its own colour:
+
+| Key         | Layout | Window | Model   | Colour |
+| ----------- | ------ | ------ | ------- | ------ |
+| Session     | single | `5`    | —       | coral  |
+| Week        | single | `168`  | —       | teal   |
+| Fable       | single | `5`    | `fable` | violet |
+| Opus        | single | `5`    | `opus`  | amber  |
+| Session + week | dual | `5` / `168` | —  | coral / teal |
+
+When the readout is showing, a model filter captions the key with the model
+rather than the window, so a per-model key labels itself.
+
+Other settings: **Reads** (percent, tokens, or percent-falling-back-to-tokens)
+and **Refresh** (5–120s, default 20s).
 
 ### Burn Rate
 
 One ring showing how much of the session ceiling is gone, with the current spend
-rate or the projected time until you hit it. Pressing flips between the two.
+rate or the projected time until you hit it. Pressing flips between the two. It
+takes the same model filter and colour, so you can watch one model's rate.
 
 The rate is effective tokens per hour over the rate window, measured against
 wall-clock time — an idle stretch pulls it down rather than being ignored.
