@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.streamDeckPlugin
+
+# Build output; regenerate with `npm run build`.
+com.kylefsu.claude-usage.sdPlugin/bin/
+
+.DS_Store
+*.log

@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+	<head lang="en">
+		<meta charset="utf-8" />
+		<script src="https://sdpi-components.dev/releases/v4/sdpi-components.js"></script>
+	</head>
+	<body>
+		<sdpi-item label="Rate window">
+			<sdpi-range setting="rateWindowMinutes" min="10" max="240" step="10" default="60" showlabels>
+				<span slot="min">10m</span>
+				<span slot="max">4h</span>
+			</sdpi-range>
+		</sdpi-item>
+
+		<sdpi-item label="Session window">
+			<sdpi-range setting="sessionHours" min="1" max="24" step="1" default="5" showlabels>
+				<span slot="min">1h</span>
+				<span slot="max">24h</span>
+			</sdpi-range>
+		</sdpi-item>
+
+		<sdpi-item label="Session ceiling">
+			<sdpi-textfield
+				setting="sessionCeiling"
+				type="number"
+				placeholder="effective tokens, e.g. 40000000"
+			></sdpi-textfield>
+		</sdpi-item>
+
+		<sdpi-item label="Model">
+			<sdpi-textfield setting="model" placeholder="all models — or fable, opus, haiku"></sdpi-textfield>
+		</sdpi-item>
+
+		<sdpi-item label="Colour">
+			<sdpi-select setting="ringColour" default="coral">
+				<option value="coral">Coral</option>
+				<option value="teal">Teal</option>
+				<option value="violet">Violet</option>
+				<option value="amber">Amber</option>
+				<option value="green">Green</option>
+				<option value="blue">Blue</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Centre reads">
+			<sdpi-select setting="display" default="rate">
+				<option value="rate">Tokens per hour</option>
+				<option value="eta">Time until ceiling</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Refresh">
+			<sdpi-range setting="refreshSeconds" min="5" max="120" step="5" default="20" showlabels>
+				<span slot="min">5s</span>
+				<span slot="max">120s</span>
+			</sdpi-range>
+		</sdpi-item>
+
+		<details>
+			<summary>About the projection</summary>
+			<p>
+				The rate is effective tokens per hour over the rate window, measured against wall-clock
+				time — so an idle stretch pulls it down rather than being ignored.
+			</p>
+			<p>
+				"Time until ceiling" assumes you keep spending at the current rate. It needs a session
+				ceiling to mean anything; without one the key shows a dash.
+			</p>
+		</details>
+	</body>
+</html>

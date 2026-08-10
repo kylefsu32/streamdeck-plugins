@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+	<head lang="en">
+		<meta charset="utf-8" />
+		<script src="https://sdpi-components.dev/releases/v4/sdpi-components.js"></script>
+		<style>
+			h4 {
+				margin: 16px 0 6px;
+				padding-bottom: 4px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+				font-size: 11px;
+				text-transform: uppercase;
+				letter-spacing: 0.06em;
+				opacity: 0.65;
+			}
+			details {
+				margin-top: 14px;
+				font-size: 12px;
+				opacity: 0.8;
+			}
+			code {
+				opacity: 0.9;
+			}
+		</style>
+	</head>
+	<body>
+		<sdpi-item label="Layout">
+			<sdpi-select setting="layout" default="dual">
+				<option value="dual">Two rings</option>
+				<option value="single">One ring</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<h4>Outer ring</h4>
+
+		<sdpi-item label="Window">
+			<sdpi-textfield setting="primaryHours" type="number" placeholder="hours — 5"></sdpi-textfield>
+		</sdpi-item>
+
+		<sdpi-item label="Ceiling">
+			<sdpi-textfield
+				setting="primaryCeiling"
+				type="number"
+				placeholder="effective tokens at 100%"
+			></sdpi-textfield>
+		</sdpi-item>
+
+		<sdpi-item label="Model">
+			<sdpi-textfield setting="primaryModel" placeholder="all models — or fable, opus, haiku"></sdpi-textfield>
+		</sdpi-item>
+
+		<sdpi-item label="Colour">
+			<sdpi-select setting="primaryColour" default="coral">
+				<option value="coral">Coral</option>
+				<option value="teal">Teal</option>
+				<option value="violet">Violet</option>
+				<option value="amber">Amber</option>
+				<option value="green">Green</option>
+				<option value="blue">Blue</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<h4>Inner ring — two-ring layout only</h4>
+
+		<sdpi-item label="Window">
+			<sdpi-textfield setting="secondaryHours" type="number" placeholder="hours — 168"></sdpi-textfield>
+		</sdpi-item>
+
+		<sdpi-item label="Ceiling">
+			<sdpi-textfield
+				setting="secondaryCeiling"
+				type="number"
+				placeholder="effective tokens at 100%"
+			></sdpi-textfield>
+		</sdpi-item>
+
+		<sdpi-item label="Model">
+			<sdpi-textfield setting="secondaryModel" placeholder="all models"></sdpi-textfield>
+		</sdpi-item>
+
+		<sdpi-item label="Colour">
+			<sdpi-select setting="secondaryColour" default="teal">
+				<option value="coral">Coral</option>
+				<option value="teal">Teal</option>
+				<option value="violet">Violet</option>
+				<option value="amber">Amber</option>
+				<option value="green">Green</option>
+				<option value="blue">Blue</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<h4>Readout</h4>
+
+		<sdpi-item label="Show readout">
+			<sdpi-checkbox setting="showText" label="Pressing the key toggles this"></sdpi-checkbox>
+		</sdpi-item>
+
+		<sdpi-item label="Reads">
+			<sdpi-select setting="textMode" default="auto">
+				<option value="auto">Percent, or tokens if no ceiling</option>
+				<option value="percent">Always percent</option>
+				<option value="tokens">Always tokens</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Refresh">
+			<sdpi-range setting="refreshSeconds" min="5" max="120" step="5" default="20" showlabels>
+				<span slot="min">5s</span>
+				<span slot="max">120s</span>
+			</sdpi-range>
+		</sdpi-item>
+
+		<details>
+			<summary>Windows, models and ceilings</summary>
+			<p>
+				<strong>Window</strong> is in hours: <code>5</code> for the session window,
+				<code>168</code> for a week, <code>24</code> for a day.
+			</p>
+			<p>
+				<strong>Model</strong> is a case-insensitive substring of the model id, so
+				<code>fable</code> matches <code>claude-fable-5</code> and <code>opus</code> covers every
+				Opus revision. Leave it empty to count everything.
+			</p>
+			<p>
+				<strong>Ceiling</strong> is the effective-token total that means 100%. Claude Code keeps
+				no plan limits on disk, so run <code>npm run report</code> in the plugin folder and
+				compare its windows against <code>/usage</code>. The report also breaks usage down per
+				model, which is what you want for a model-specific key.
+			</p>
+			<p>Leave a ceiling empty and the ring stays dark while the readout shows raw tokens.</p>
+		</details>
+	</body>
+</html>
