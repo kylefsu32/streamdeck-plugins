@@ -24,34 +24,19 @@ export type RGB = readonly [number, number, number];
 export type RingsOptions = {
 	size?: number;
 	rings: RingSpec[];
-	centreText?: string;
-	centreSubText?: string;
-	centreColour?: RGB;
 	/** Solid background. Omit for transparent. */
 	background?: RGB;
 };
 
 const SEGMENT_DEGREES = 9;
 
-const FONT = "-apple-system,SF Pro Display,Helvetica Neue,Helvetica,Arial,sans-serif";
+export const FONT = "-apple-system,SF Pro Display,Helvetica Neue,Helvetica,Arial,sans-serif";
 
-/**
- * The centre hole is about 70px across, so the type has to shrink as the string
- * grows — "0" and "19.3M" both have to sit inside the inner ring without
- * touching it. Digits run roughly 0.56em wide in this family.
- */
-function centreFontSize(text: string, hasSub: boolean): number {
-	const budget = hasSub ? 62 : 66;
-	const ideal = hasSub ? 27 : 30;
-	const width = Math.max(1, text.length) * 0.56;
-	return Math.max(14, Math.min(ideal, Math.floor(budget / width)));
-}
-
-function rgb([r, g, b]: RGB): string {
+export function rgb([r, g, b]: RGB): string {
 	return `rgb(${r},${g},${b})`;
 }
 
-function mix(a: RGB, b: RGB, t: number): RGB {
+export function mix(a: RGB, b: RGB, t: number): RGB {
 	const c = Math.max(0, Math.min(1, t));
 	return [
 		Math.round(a[0] + (b[0] - a[0]) * c),
@@ -141,24 +126,6 @@ export function renderRings(options: RingsOptions): string {
 		body.push(ringSvg(cx, cy, spec));
 	}
 
-	if (options.centreText) {
-		const colour = rgb(options.centreColour ?? [255, 255, 255]);
-		const hasSub = Boolean(options.centreSubText);
-		const mainSize = centreFontSize(options.centreText, hasSub);
-		const mainY = hasSub ? cy - 7 : cy;
-		body.push(
-			`<text x="${cx}" y="${round(mainY)}" fill="${colour}" font-family="${FONT}"` +
-				` font-size="${mainSize}" font-weight="600" text-anchor="middle" dominant-baseline="central">${escapeXml(options.centreText)}</text>`
-		);
-		if (options.centreSubText) {
-			body.push(
-				`<text x="${cx}" y="${round(cy + 17)}" fill="${colour}" fill-opacity="0.55" font-family="${FONT}"` +
-					` font-size="12" font-weight="600" letter-spacing="0.6"` +
-					` text-anchor="middle" dominant-baseline="central">${escapeXml(options.centreSubText)}</text>`
-			);
-		}
-	}
-
 	const svg =
 		`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">` +
 		body.join("") +
@@ -167,7 +134,7 @@ export function renderRings(options: RingsOptions): string {
 	return `data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`;
 }
 
-function escapeXml(value: string): string {
+export function escapeXml(value: string): string {
 	return value
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")

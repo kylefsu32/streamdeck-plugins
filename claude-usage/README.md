@@ -88,10 +88,16 @@ raw token count — the key is still useful before you calibrate.
 
 ### Usage Rings
 
-A key rests as rings alone. **Pressing it reveals the readout, pressing again
-hides it** — so a wall of keys stays quiet until you ask one a question. Past
-100% the ring turns red and a thinner overshoot arc wraps back around on top,
-the way the Watch does it.
+A key rests as rings alone. **Pressing swaps the face to text alone — no rings —
+and pressing again swaps back**, so a wall of keys stays quiet until you ask one
+a question. Dropping the rings frees the whole canvas, so the figures render
+about twice the size they could manage inside a ring's centre hole. A two-ring
+key shows both numbers.
+
+Values keep the colour of the ring they replace and turn red over budget, so a
+pressed key is still identifiable at a glance. On the rings themselves, past 100%
+the ring turns red and a thinner overshoot arc wraps back around on top, the way
+the Watch does it.
 
 Each key is either **one ring** or **two**, and every ring is configured
 independently:
@@ -122,8 +128,9 @@ and **Refresh** (5–120s, default 20s).
 
 ### Burn Rate
 
-One ring showing how much of the session ceiling is gone, with the current spend
-rate or the projected time until you hit it. Pressing flips between the two. It
+One ring showing how much of the session ceiling is gone. Pressing swaps it to
+the readout, same as the rings key; whether that reads the current spend rate or
+the projected time until you hit the ceiling is a property-inspector setting. It
 takes the same model filter and colour, so you can watch one model's rate.
 
 The rate is effective tokens per hour over the rate window, measured against

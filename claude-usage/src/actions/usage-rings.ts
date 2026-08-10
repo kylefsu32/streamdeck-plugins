@@ -10,7 +10,8 @@ import streamDeck, {
 import { fraction, summarise } from "../engine/aggregate";
 import { usageService } from "../engine/service";
 import { compactTokens, percentLabel } from "../render/format";
-import { colour, GEOMETRY, PALETTE, renderRings, type RingSpec } from "../render/rings";
+import { renderReadout, type ReadoutRow } from "../render/readout";
+import { colour, GEOMETRY, PALETTE, renderRings, type ColourName } from "../render/rings";
 
 const HOUR = 3_600_000;
 
@@ -133,25 +134,33 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 				colourName: settings.primaryColour ?? DEFAULTS.primaryColour
 			});
 
-			const rings: RingSpec[] = [];
-			if (single) {
-				rings.push({ value: primary.value, ...GEOMETRY.solo, ...colour(primary.colourName, "coral") });
-			} else {
-				const secondary = resolve(samples, now, {
-					hours: positive(settings.secondaryHours, DEFAULTS.secondaryHours),
-					ceiling: nonNegative(settings.secondaryCeiling, 0),
-					model: settings.secondaryModel,
-					colourName: settings.secondaryColour ?? DEFAULTS.secondaryColour
-				});
-				rings.push({ value: primary.value, ...GEOMETRY.outer, ...colour(primary.colourName, "coral") });
-				rings.push({ value: secondary.value, ...GEOMETRY.inner, ...colour(secondary.colourName, "teal") });
-			}
+			const secondary = single
+				? undefined
+				: resolve(samples, now, {
+						hours: positive(settings.secondaryHours, DEFAULTS.secondaryHours),
+						ceiling: nonNegative(settings.secondaryCeiling, 0),
+						model: settings.secondaryModel,
+						colourName: settings.secondaryColour ?? DEFAULTS.secondaryColour
+					});
 
-			const image = renderRings({
-				background: PALETTE.background,
-				rings,
-				...this.#centre(settings, primary)
-			});
+			// Pressed swaps the face entirely: text with no rings, so the figures
+			// get the whole canvas instead of the rings' centre hole.
+			const image = (settings.showText ?? DEFAULTS.showText)
+				? renderReadout({
+						background: PALETTE.background,
+						rows: [primary, ...(secondary ? [secondary] : [])].map((ring) =>
+							this.#row(settings, ring, ring === primary ? "coral" : "teal")
+						)
+					})
+				: renderRings({
+						background: PALETTE.background,
+						rings: single
+							? [{ value: primary.value, ...GEOMETRY.solo, ...colour(primary.colourName, "coral") }]
+							: [
+									{ value: primary.value, ...GEOMETRY.outer, ...colour(primary.colourName, "coral") },
+									{ value: secondary!.value, ...GEOMETRY.inner, ...colour(secondary!.colourName, "teal") }
+								]
+					});
 
 			try {
 				await instance.setImage(image);
@@ -161,19 +170,18 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 		}
 	}
 
-	#centre(settings: RingsSettings, primary: ResolvedRing): { centreText?: string; centreSubText?: string } {
-		if (!(settings.showText ?? DEFAULTS.showText)) {
-			return {}; // rings only until the key is pressed
-		}
-
+	#row(settings: RingsSettings, ring: ResolvedRing, fallback: ColourName): ReadoutRow {
 		const mode = settings.textMode ?? DEFAULTS.textMode;
 		// A percentage without a ceiling would be meaningless, so "auto" falls
 		// back to the raw effective-token count until one is calibrated.
-		const asPercent = mode === "percent" || (mode === "auto" && primary.ceiling > 0);
+		const asPercent = mode === "percent" || (mode === "auto" && ring.ceiling > 0);
+		const palette = colour(ring.colourName, fallback);
 
 		return {
-			centreText: asPercent ? percentLabel(primary.value) : compactTokens(primary.effective),
-			centreSubText: subLabel(primary)
+			value: asPercent ? percentLabel(ring.value) : compactTokens(ring.effective),
+			label: subLabel(ring),
+			// Over budget reads red here too, matching what the ring would show.
+			colour: ring.value > 1 ? palette.over : palette.lit
 		};
 	}
 }

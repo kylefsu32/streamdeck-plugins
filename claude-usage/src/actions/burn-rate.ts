@@ -10,6 +10,7 @@ import streamDeck, {
 import { burnRatePerHour, fraction, summarise, timeToCeiling } from "../engine/aggregate";
 import { usageService } from "../engine/service";
 import { compactDuration, compactTokens } from "../render/format";
+import { renderReadout } from "../render/readout";
 import { colour, GEOMETRY, PALETTE, renderRings } from "../render/rings";
 
 const HOUR = 3_600_000;
@@ -24,6 +25,8 @@ export type BurnSettings = {
 	model?: string;
 	ringColour?: string;
 	display?: "rate" | "eta";
+	/** Toggled by pressing the key. Off means ring only. */
+	showText?: boolean;
 	refreshSeconds?: number;
 };
 
@@ -33,6 +36,7 @@ const DEFAULTS = {
 	sessionCeiling: 0,
 	ringColour: "coral",
 	display: "rate" as const,
+	showText: false,
 	refreshSeconds: 20
 };
 
@@ -68,12 +72,11 @@ export class BurnRate extends SingletonAction<BurnSettings> {
 		return this.#paint();
 	}
 
-	/** Pressing flips between the rate and the projected time remaining. */
+	/** Pressing reveals or hides the readout, matching the rings key. */
 	override async onKeyDown(ev: KeyDownEvent<BurnSettings>): Promise<void> {
 		const settings = ev.payload.settings ?? {};
-		const next = (settings.display ?? DEFAULTS.display) === "rate" ? "eta" : "rate";
-		await ev.action.setSettings({ ...settings, display: next });
-		await usageService.refresh();
+		const showText = !(settings.showText ?? DEFAULTS.showText);
+		await ev.action.setSettings({ ...settings, showText });
 		await this.#paint();
 	}
 
@@ -109,16 +112,22 @@ export class BurnRate extends SingletonAction<BurnSettings> {
 			const session = summarise(samples, now, sessionMs, filter);
 			const used = fraction(session.effective, ceiling);
 
-			const centre =
+			const palette = colour(settings.ringColour, "coral");
+			const readout =
 				(settings.display ?? DEFAULTS.display) === "eta"
 					? this.#eta(session.effective, ceiling, rate)
-					: { centreText: `${compactTokens(rate)}`, centreSubText: "/HR" };
+					: { value: compactTokens(rate), label: "/HR" };
 
-			const image = renderRings({
-				background: PALETTE.background,
-				rings: [{ value: used, ...GEOMETRY.solo, ...colour(settings.ringColour, "coral") }],
-				...centre
-			});
+			// Pressed swaps the face entirely: text with no ring.
+			const image = (settings.showText ?? DEFAULTS.showText)
+				? renderReadout({
+						background: PALETTE.background,
+						rows: [{ ...readout, colour: used > 1 ? palette.over : palette.lit }]
+					})
+				: renderRings({
+						background: PALETTE.background,
+						rings: [{ value: used, ...GEOMETRY.solo, ...palette }]
+					});
 
 			try {
 				await instance.setImage(image);
@@ -128,18 +137,18 @@ export class BurnRate extends SingletonAction<BurnSettings> {
 		}
 	}
 
-	#eta(used: number, ceiling: number, rate: number): { centreText: string; centreSubText: string } {
+	#eta(used: number, ceiling: number, rate: number): { value: string; label: string } {
 		if (ceiling <= 0) {
-			return { centreText: "—", centreSubText: "SET" };
+			return { value: "—", label: "NO CEILING" };
 		}
 		const remainingMs = timeToCeiling(used, ceiling, rate);
 		if (remainingMs === undefined) {
-			return { centreText: "∞", centreSubText: "LEFT" };
+			return { value: "∞", label: "LEFT" };
 		}
 		if (remainingMs === 0) {
-			return { centreText: "0", centreSubText: "LEFT" };
+			return { value: "0", label: "LEFT" };
 		}
-		return { centreText: compactDuration(remainingMs), centreSubText: "LEFT" };
+		return { value: compactDuration(remainingMs), label: "LEFT" };
 	}
 }
 
