@@ -56,15 +56,16 @@ npm run report
 ```
 window                 effective   calls     output   cache rd
 ──────────────────────────────────────────────────────────────
-last 1h                    1.10M      42      67.6K      4.31M
-last 5h  (session)         4.66M     188     210.9K     25.82M
-last 24h                   4.66M     188     210.9K     25.82M
-last 7d  (week)            4.66M     188     210.9K     25.82M
+last 1h                        —       —          —          —
+last 5h  (session)             —       —          —          —
+last 24h                       —       —          —          —
+last 7d  (week)                —       —          —          —
 ```
 
-Compare the session and week rows against the percentages `/usage` reports in
-Claude Code. If `/usage` says 50% and the session row reads 20M, your session
-ceiling is about 40M. Enter that in the property inspector.
+Dashes stand in for your own figures. Compare the session and week rows against
+the percentages `/usage` reports in Claude Code — if `/usage` says 50% and the
+session row reads 20M, your session ceiling is about 40M. Enter that in the
+property inspector.
 
 The report also breaks the window down per model, which is what a model-specific
 key needs — both its ceiling and the substring to filter on:
@@ -73,10 +74,9 @@ key needs — both its ceiling and the substring to filter on:
 per model — history (60d)
 model                            effective   calls    share
 ───────────────────────────────────────────────────────────
-claude-opus-4-8                    181.27M    2529      45%
-claude-opus-5                      160.04M    3849      40%
-claude-fable-5                      62.34M    1700      15%
-claude-haiku-4-5-20251001           189.5K      23       0%
+claude-opus-5                            —       —        —
+claude-fable-5                           —       —        —
+claude-haiku-4-5-20251001                —       —        —
 ```
 
 Pass a day count to widen the history: `npm run report -- 60`.
@@ -211,7 +211,8 @@ tools/
 ```
 
 Transcripts are read incrementally — only bytes appended since the last scan —
-so the poll costs about 100ms on a 150MB corpus and much less thereafter.
+so a poll costs on the order of 100ms even on a large transcript directory, and
+much less once the first scan has been done.
 `CLAUDE_CONFIG_DIR` is honoured if you have moved `~/.claude`.
 
 ## Known limits
