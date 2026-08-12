@@ -13,39 +13,50 @@
 				letter-spacing: 0.06em;
 				opacity: 0.65;
 			}
+			.hint {
+				margin: -2px 0 10px;
+				font-size: 11px;
+				line-height: 1.45;
+				opacity: 0.6;
+			}
 			details {
 				margin-top: 14px;
 				font-size: 12px;
-				opacity: 0.8;
+				opacity: 0.85;
 			}
-			code {
-				opacity: 0.9;
+			details p {
+				line-height: 1.5;
 			}
 		</style>
 	</head>
 	<body>
-		<sdpi-item label="Layout">
+		<sdpi-item label="Rings">
 			<sdpi-select setting="layout" default="dual">
-				<option value="dual">Two rings</option>
 				<option value="single">One ring</option>
+				<option value="dual">Two rings</option>
 			</sdpi-select>
 		</sdpi-item>
 
-		<h4>Outer ring</h4>
+		<h4 id="primary-heading">Ring</h4>
 
-		<sdpi-item label="Window">
-			<sdpi-textfield setting="primaryHours" type="number" placeholder="hours — 5"></sdpi-textfield>
+		<sdpi-item label="Tracks">
+			<sdpi-select setting="primaryHours" default="5">
+				<option value="5">Session — last 5 hours</option>
+				<option value="24">Day — last 24 hours</option>
+				<option value="168">Week — last 7 days</option>
+				<option value="custom">Custom…</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Custom hours" id="primary-custom">
+			<sdpi-textfield setting="primaryCustomHours" type="number" placeholder="hours"></sdpi-textfield>
 		</sdpi-item>
 
 		<sdpi-item label="Ceiling">
-			<sdpi-textfield
-				setting="primaryCeiling"
-				type="number"
-				placeholder="effective tokens at 100%"
-			></sdpi-textfield>
+			<sdpi-textfield setting="primaryCeiling" type="number" placeholder="tokens that mean 100%"></sdpi-textfield>
 		</sdpi-item>
 
-		<sdpi-item label="Model">
+		<sdpi-item label="Only this model">
 			<sdpi-textfield setting="primaryModel" placeholder="all models — or fable, opus, haiku"></sdpi-textfield>
 		</sdpi-item>
 
@@ -60,25 +71,30 @@
 			</sdpi-select>
 		</sdpi-item>
 
-		<h4>Inner ring — two-ring layout only</h4>
+		<h4 data-dual-only>Inner ring</h4>
 
-		<sdpi-item label="Window">
-			<sdpi-textfield setting="secondaryHours" type="number" placeholder="hours — 168"></sdpi-textfield>
+		<sdpi-item label="Tracks" data-dual-only>
+			<sdpi-select setting="secondaryHours" default="168">
+				<option value="5">Session — last 5 hours</option>
+				<option value="24">Day — last 24 hours</option>
+				<option value="168">Week — last 7 days</option>
+				<option value="custom">Custom…</option>
+			</sdpi-select>
 		</sdpi-item>
 
-		<sdpi-item label="Ceiling">
-			<sdpi-textfield
-				setting="secondaryCeiling"
-				type="number"
-				placeholder="effective tokens at 100%"
-			></sdpi-textfield>
+		<sdpi-item label="Custom hours" id="secondary-custom" data-dual-only>
+			<sdpi-textfield setting="secondaryCustomHours" type="number" placeholder="hours"></sdpi-textfield>
 		</sdpi-item>
 
-		<sdpi-item label="Model">
+		<sdpi-item label="Ceiling" data-dual-only>
+			<sdpi-textfield setting="secondaryCeiling" type="number" placeholder="tokens that mean 100%"></sdpi-textfield>
+		</sdpi-item>
+
+		<sdpi-item label="Only this model" data-dual-only>
 			<sdpi-textfield setting="secondaryModel" placeholder="all models"></sdpi-textfield>
 		</sdpi-item>
 
-		<sdpi-item label="Colour">
+		<sdpi-item label="Colour" data-dual-only>
 			<sdpi-select setting="secondaryColour" default="teal">
 				<option value="coral">Coral</option>
 				<option value="teal">Teal</option>
@@ -90,14 +106,15 @@
 		</sdpi-item>
 
 		<h4>Readout</h4>
+		<p class="hint">Pressing the key swaps between the rings and the numbers.</p>
 
-		<sdpi-item label="Show readout">
-			<sdpi-checkbox setting="showText" label="Pressing the key toggles this"></sdpi-checkbox>
+		<sdpi-item label="Showing numbers">
+			<sdpi-checkbox setting="showText" label="Same as pressing the key"></sdpi-checkbox>
 		</sdpi-item>
 
-		<sdpi-item label="Reads">
+		<sdpi-item label="Show as">
 			<sdpi-select setting="textMode" default="auto">
-				<option value="auto">Percent, or tokens if no ceiling</option>
+				<option value="auto">Percent, or tokens with no ceiling</option>
 				<option value="percent">Always percent</option>
 				<option value="tokens">Always tokens</option>
 			</sdpi-select>
@@ -140,23 +157,76 @@
 		</sdpi-item>
 
 		<details>
-			<summary>Windows, models and ceilings</summary>
+			<summary>What do I put in “Ceiling”?</summary>
 			<p>
-				<strong>Window</strong> is in hours: <code>5</code> for the session window,
-				<code>168</code> for a week, <code>24</code> for a day.
+				It is the number of tokens that should read as 100%. Claude Code keeps no plan limits on
+				disk, so the plugin cannot know yours — you set it once.
 			</p>
 			<p>
-				<strong>Model</strong> is a case-insensitive substring of the model id, so
-				<code>fable</code> matches <code>claude-fable-5</code> and <code>opus</code> covers every
-				Opus revision. Leave it empty to count everything.
+				Long-press this key to open <code>/usage</code>, then run <code>npm run report</code> in
+				the plugin folder. If <code>/usage</code> says you are at 50% and the matching row in the
+				report reads 20M, your ceiling is about 40M.
 			</p>
 			<p>
-				<strong>Ceiling</strong> is the effective-token total that means 100%. Claude Code keeps
-				no plan limits on disk, so run <code>npm run report</code> in the plugin folder and
-				compare its windows against <code>/usage</code>. The report also breaks usage down per
-				model, which is what you want for a model-specific key.
+				Leave it empty and the ring stays dark, while the readout shows raw tokens instead of a
+				percentage. The key still works — it just cannot draw a proportion of nothing.
 			</p>
-			<p>Leave a ceiling empty and the ring stays dark while the readout shows raw tokens.</p>
+			<p>
+				<strong>Only this model</strong> is a partial name: <code>fable</code> matches
+				<code>claude-fable-5</code>, <code>opus</code> covers every Opus. The report breaks usage
+				down per model so you can set a ceiling for one.
+			</p>
 		</details>
+
+		<script>
+			// sdpi-components hydrate asynchronously, so this both listens for changes
+			// and re-checks for a few seconds after load. Anything it cannot determine
+			// fails open — showing a field is always better than hiding one wrongly.
+			(function () {
+				function value(setting) {
+					var el = document.querySelector('[setting="' + setting + '"]');
+					if (!el) return undefined;
+					var v = el.value;
+					return v === undefined || v === null || v === "" ? undefined : String(v);
+				}
+
+				function show(el, visible) {
+					if (el) el.style.display = visible ? "" : "none";
+				}
+
+				function sync() {
+					var single = value("layout") === "single";
+
+					var heading = document.getElementById("primary-heading");
+					if (heading) heading.textContent = single ? "Ring" : "Outer ring";
+
+					var dualOnly = document.querySelectorAll("[data-dual-only]");
+					for (var i = 0; i < dualOnly.length; i++) show(dualOnly[i], !single);
+
+					show(document.getElementById("primary-custom"), value("primaryHours") === "custom");
+					show(
+						document.getElementById("secondary-custom"),
+						!single && value("secondaryHours") === "custom"
+					);
+				}
+
+				function safeSync() {
+					try {
+						sync();
+					} catch (e) {
+						/* leave every field visible */
+					}
+				}
+
+				document.addEventListener("change", safeSync, true);
+				document.addEventListener("input", safeSync, true);
+
+				var ticks = 0;
+				var timer = setInterval(function () {
+					safeSync();
+					if (++ticks > 25) clearInterval(timer);
+				}, 150);
+			})();
+		</script>
 	</body>
 </html>

@@ -21,16 +21,16 @@ const MINUTE = 60_000;
 
 export type BurnSettings = {
 	/** Window the rate is measured over, in minutes. */
-	rateWindowMinutes?: number;
-	sessionHours?: number;
-	sessionCeiling?: number;
+	rateWindowMinutes?: number | string;
+	sessionHours?: number | string;
+	sessionCeiling?: number | string;
 	/** Case-insensitive substring on the model id, e.g. "fable". */
 	model?: string;
 	ringColour?: string;
 	display?: "rate" | "eta";
 	/** Toggled by pressing the key. Off means ring only. */
 	showText?: boolean;
-	refreshSeconds?: number;
+	refreshSeconds?: number | string;
 } & LongPressSettings;
 
 const DEFAULTS = {
@@ -174,10 +174,24 @@ export class BurnRate extends SingletonAction<BurnSettings> {
 	}
 }
 
-function positive(value: number | undefined, fallback: number): number {
-	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
+/** Property inspector fields hand back strings, so coerce before comparing. */
+function toNumber(value: unknown): number | undefined {
+	if (typeof value === "number") {
+		return Number.isFinite(value) ? value : undefined;
+	}
+	if (typeof value === "string" && value.trim().length > 0) {
+		const parsed = Number(value);
+		return Number.isFinite(parsed) ? parsed : undefined;
+	}
+	return undefined;
 }
 
-function nonNegative(value: number | undefined, fallback: number): number {
-	return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : fallback;
+function positive(value: unknown, fallback: number): number {
+	const parsed = toNumber(value);
+	return parsed !== undefined && parsed > 0 ? parsed : fallback;
+}
+
+function nonNegative(value: unknown, fallback: number): number {
+	const parsed = toNumber(value);
+	return parsed !== undefined && parsed >= 0 ? parsed : fallback;
 }

@@ -20,26 +20,34 @@ const HOUR = 3_600_000;
 
 const log = streamDeck.logger.createScope("rings");
 
+/**
+ * Property inspector fields hand back strings — a number textfield stores
+ * "40000000", not 40000000 — so every numeric setting has to tolerate both.
+ */
+type Numeric = number | string;
+
 export type RingsSettings = {
 	/** One ring, or an outer/inner pair. */
 	layout?: "single" | "dual";
 
 	/** Outer ring in dual layout; the only ring in single layout. */
-	primaryHours?: number;
-	primaryCeiling?: number;
+	primaryHours?: Numeric;
+	primaryCustomHours?: Numeric;
+	primaryCeiling?: Numeric;
 	primaryModel?: string;
 	primaryColour?: string;
 
 	/** Inner ring. Ignored in single layout. */
-	secondaryHours?: number;
-	secondaryCeiling?: number;
+	secondaryHours?: Numeric;
+	secondaryCustomHours?: Numeric;
+	secondaryCeiling?: Numeric;
 	secondaryModel?: string;
 	secondaryColour?: string;
 
 	/** Toggled by pressing the key. Off means rings only. */
 	showText?: boolean;
 	textMode?: "auto" | "percent" | "tokens";
-	refreshSeconds?: number;
+	refreshSeconds?: Numeric;
 } & LongPressSettings;
 
 const DEFAULTS = {
@@ -131,8 +139,10 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 
 	#applySettings(settings: RingsSettings | undefined): void {
 		const widest = Math.max(
-			positive(settings?.primaryHours, DEFAULTS.primaryHours),
-			settings?.layout === "single" ? 0 : positive(settings?.secondaryHours, DEFAULTS.secondaryHours)
+			windowHours(settings?.primaryHours, settings?.primaryCustomHours, DEFAULTS.primaryHours),
+			settings?.layout === "single"
+				? 0
+				: windowHours(settings?.secondaryHours, settings?.secondaryCustomHours, DEFAULTS.secondaryHours)
 		);
 		usageService.requireWindow(widest * HOUR);
 		usageService.setInterval(positive(settings?.refreshSeconds, DEFAULTS.refreshSeconds) * 1000);
@@ -153,7 +163,7 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 			const single = (settings.layout ?? DEFAULTS.layout) === "single";
 
 			const primary = resolve(samples, now, {
-				hours: positive(settings.primaryHours, DEFAULTS.primaryHours),
+				hours: windowHours(settings.primaryHours, settings.primaryCustomHours, DEFAULTS.primaryHours),
 				ceiling: nonNegative(settings.primaryCeiling, 0),
 				model: settings.primaryModel,
 				colourName: settings.primaryColour ?? DEFAULTS.primaryColour
@@ -162,7 +172,7 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 			const secondary = single
 				? undefined
 				: resolve(samples, now, {
-						hours: positive(settings.secondaryHours, DEFAULTS.secondaryHours),
+						hours: windowHours(settings.secondaryHours, settings.secondaryCustomHours, DEFAULTS.secondaryHours),
 						ceiling: nonNegative(settings.secondaryCeiling, 0),
 						model: settings.secondaryModel,
 						colourName: settings.secondaryColour ?? DEFAULTS.secondaryColour
@@ -245,10 +255,35 @@ function windowLabel(hours: number): string {
 	return `${hours}H`;
 }
 
-function positive(value: number | undefined, fallback: number): number {
-	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
+/** Accepts the strings the property inspector stores as well as real numbers. */
+function toNumber(value: unknown): number | undefined {
+	if (typeof value === "number") {
+		return Number.isFinite(value) ? value : undefined;
+	}
+	if (typeof value === "string" && value.trim().length > 0) {
+		const parsed = Number(value);
+		return Number.isFinite(parsed) ? parsed : undefined;
+	}
+	return undefined;
 }
 
-function nonNegative(value: number | undefined, fallback: number): number {
-	return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : fallback;
+function positive(value: unknown, fallback: number): number {
+	const parsed = toNumber(value);
+	return parsed !== undefined && parsed > 0 ? parsed : fallback;
+}
+
+function nonNegative(value: unknown, fallback: number): number {
+	const parsed = toNumber(value);
+	return parsed !== undefined && parsed >= 0 ? parsed : fallback;
+}
+
+/**
+ * The window picker stores a preset in hours, or the literal "custom" — in
+ * which case the companion field holds the real value.
+ */
+function windowHours(preset: Numeric | undefined, custom: Numeric | undefined, fallback: number): number {
+	if (String(preset) === "custom") {
+		return positive(custom, fallback);
+	}
+	return positive(preset, fallback);
 }

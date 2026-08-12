@@ -32,7 +32,8 @@ export type LongPressMode = "usage" | "command" | "none";
 /** Long-press settings, mixed into each action's own settings. */
 export type LongPressSettings = {
 	longPress?: LongPressMode;
-	longPressMs?: number;
+	/** May arrive as a string from the property inspector. */
+	longPressMs?: number | string;
 	longPressCommand?: string;
 	/** Application name passed to `open -a`. Defaults to Terminal. */
 	terminalApp?: string;
@@ -129,8 +130,8 @@ export function runCommand(command: string): void {
 }
 
 export function longPressThreshold(settings: LongPressSettings): number {
-	const value = settings.longPressMs;
-	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : DEFAULT_LONG_PRESS_MS;
+	const value = Number(settings.longPressMs);
+	return Number.isFinite(value) && value > 0 ? value : DEFAULT_LONG_PRESS_MS;
 }
 
 /** Runs the configured long-press action. Returns false when there is nothing to do. */
