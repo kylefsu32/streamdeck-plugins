@@ -175,8 +175,11 @@ Requires the Stream Deck desktop app 6.5+ and Node 20+.
 ```bash
 npm install
 npm run build
-streamdeck link com.kylefsu.claude-usage.sdPlugin
+npx streamdeck link com.kylefsu.claude-usage.sdPlugin
 ```
+
+The Elgato CLI comes in as a dev dependency, so `npx` runs it without a global
+install. Drop the `npx` if you have `@elgato/cli` installed globally.
 
 `streamdeck link` needs the Stream Deck app installed on the same machine, so
 run it wherever the deck actually lives. To iterate:

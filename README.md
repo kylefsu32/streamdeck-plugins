@@ -12,8 +12,10 @@ Each plugin is self-contained — its own `package.json`, build, and manifest.
 cd claude-usage
 npm install
 npm run build
-streamdeck link com.kylefsu.claude-usage.sdPlugin
+npx streamdeck link com.kylefsu.claude-usage.sdPlugin
 ```
+
+The Elgato CLI is a dev dependency, so `npx` runs it without a global install.
 
 `streamdeck link` needs the Stream Deck desktop app on the same machine, so run
 it wherever the deck is actually plugged in.
