@@ -3,6 +3,10 @@ import streamDeck from "@elgato/streamdeck";
 import { BurnRate } from "./actions/burn-rate";
 import { UsageRings } from "./actions/usage-rings";
 
+// Verbose while the plugin is being brought up on real hardware; the file log
+// is the only view into what a key is actually doing.
+streamDeck.logger.setLevel("debug");
+
 const log = streamDeck.logger.createScope("plugin");
 
 // The Stream Deck app only reports the exit code, which for a drained event

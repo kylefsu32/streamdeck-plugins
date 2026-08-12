@@ -131,7 +131,9 @@ export function renderRings(options: RingsOptions): string {
 		body.join("") +
 		"</svg>";
 
-	return `data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`;
+	// Stream Deck takes SVG as a URI-encoded data URL, not base64. Base64 is for
+	// the raster formats; passing SVG that way renders nothing at all.
+	return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
 export function escapeXml(value: string): string {

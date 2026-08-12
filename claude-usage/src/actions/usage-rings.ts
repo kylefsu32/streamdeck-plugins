@@ -18,6 +18,8 @@ import { LongPressTracker } from "./press";
 
 const HOUR = 3_600_000;
 
+const log = streamDeck.logger.createScope("rings");
+
 export type RingsSettings = {
 	/** One ring, or an outer/inner pair. */
 	layout?: "single" | "dual";
@@ -74,6 +76,7 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 	#unsubscribe: (() => void) | undefined;
 
 	override onWillAppear(ev: WillAppearEvent<RingsSettings>): void | Promise<void> {
+		log.info(`appeared (${ev.action.id})`);
 		this.#ensureSubscribed();
 		this.#applySettings(ev.payload.settings);
 		return this.#paint();
@@ -184,10 +187,15 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 								]
 					});
 
+			log.debug(
+				`paint ${single ? "single" : "dual"} primary=${primary.effective.toFixed(0)}` +
+					` value=${primary.value.toFixed(3)} samples=${samples.length} imageChars=${image.length}`
+			);
+
 			try {
 				await instance.setImage(image);
 			} catch (err) {
-				streamDeck.logger.warn("setImage failed", err);
+				log.error("setImage failed", err);
 			}
 		}
 	}

@@ -32,6 +32,13 @@ function fit(text: string, budget: number, max: number): number {
 	return Math.max(12, Math.min(max, Math.floor(budget / width)));
 }
 
+/**
+ * `y` is where the text should appear *centred*.
+ *
+ * Stream Deck rasterises SVG with Qt, which implements SVG Tiny and ignores
+ * `dominant-baseline` — so vertical centring has to be done by hand. Shifting
+ * the baseline down by ~0.35em puts the cap-height mass on the requested line.
+ */
 function text(
 	x: number,
 	y: number,
@@ -40,10 +47,11 @@ function text(
 ): string {
 	const opacity = options.opacity === undefined ? "" : ` fill-opacity="${options.opacity}"`;
 	const tracking = options.tracking === undefined ? "" : ` letter-spacing="${options.tracking}"`;
+	const baseline = Math.round((y + options.size * 0.35) * 100) / 100;
 	return (
-		`<text x="${x}" y="${y}" fill="${options.colour}"${opacity} font-family="${FONT}"` +
+		`<text x="${x}" y="${baseline}" fill="${options.colour}"${opacity} font-family="${FONT}"` +
 		` font-size="${options.size}" font-weight="${options.weight ?? 600}"${tracking}` +
-		` text-anchor="middle" dominant-baseline="central">${escapeXml(content)}</text>`
+		` text-anchor="middle">${escapeXml(content)}</text>`
 	);
 }
 
@@ -80,5 +88,6 @@ export function renderReadout(options: ReadoutOptions): string {
 		body.join("") +
 		"</svg>";
 
-	return `data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`;
+	// URI-encoded, not base64 — see the note in rings.ts.
+	return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
