@@ -40,11 +40,13 @@
 		<h4 id="primary-heading">Ring</h4>
 
 		<sdpi-item label="Tracks">
-			<sdpi-select setting="primaryHours" default="session">
-				<option value="session">Session — the 5-hour limit</option>
-				<option value="168">Week — last 7 days</option>
-				<option value="24">Day — last 24 hours</option>
-				<option value="custom">Custom…</option>
+			<sdpi-select setting="primaryTracks" default="limit-5h">
+				<option value="limit-5h">Session limit — from Claude</option>
+				<option value="limit-7d">Weekly limit — from Claude</option>
+				<option value="session">Tokens — session block</option>
+				<option value="24">Tokens — last 24 hours</option>
+				<option value="168">Tokens — last 7 days</option>
+				<option value="custom">Tokens — custom hours</option>
 			</sdpi-select>
 		</sdpi-item>
 
@@ -52,11 +54,11 @@
 			<sdpi-textfield setting="primaryCustomHours" type="number" placeholder="hours"></sdpi-textfield>
 		</sdpi-item>
 
-		<sdpi-item label="Ceiling">
+		<sdpi-item label="Ceiling" class="primary-tokens">
 			<sdpi-textfield setting="primaryCeiling" type="number" placeholder="tokens that mean 100%"></sdpi-textfield>
 		</sdpi-item>
 
-		<sdpi-item label="Only this model">
+		<sdpi-item label="Only this model" class="primary-tokens">
 			<sdpi-textfield setting="primaryModel" placeholder="all models — or fable, opus, haiku"></sdpi-textfield>
 		</sdpi-item>
 
@@ -74,11 +76,13 @@
 		<h4 data-dual-only>Inner ring</h4>
 
 		<sdpi-item label="Tracks" data-dual-only>
-			<sdpi-select setting="secondaryHours" default="168">
-				<option value="session">Session — the 5-hour limit</option>
-				<option value="168">Week — last 7 days</option>
-				<option value="24">Day — last 24 hours</option>
-				<option value="custom">Custom…</option>
+			<sdpi-select setting="secondaryTracks" default="limit-7d">
+				<option value="limit-5h">Session limit — from Claude</option>
+				<option value="limit-7d">Weekly limit — from Claude</option>
+				<option value="session">Tokens — session block</option>
+				<option value="24">Tokens — last 24 hours</option>
+				<option value="168">Tokens — last 7 days</option>
+				<option value="custom">Tokens — custom hours</option>
 			</sdpi-select>
 		</sdpi-item>
 
@@ -86,11 +90,11 @@
 			<sdpi-textfield setting="secondaryCustomHours" type="number" placeholder="hours"></sdpi-textfield>
 		</sdpi-item>
 
-		<sdpi-item label="Ceiling" data-dual-only>
+		<sdpi-item label="Ceiling" class="secondary-tokens" data-dual-only>
 			<sdpi-textfield setting="secondaryCeiling" type="number" placeholder="tokens that mean 100%"></sdpi-textfield>
 		</sdpi-item>
 
-		<sdpi-item label="Only this model" data-dual-only>
+		<sdpi-item label="Only this model" class="secondary-tokens" data-dual-only>
 			<sdpi-textfield setting="secondaryModel" placeholder="all models"></sdpi-textfield>
 		</sdpi-item>
 
@@ -110,14 +114,6 @@
 
 		<sdpi-item label="Showing numbers">
 			<sdpi-checkbox setting="showText" label="Same as pressing the key"></sdpi-checkbox>
-		</sdpi-item>
-
-		<sdpi-item label="Show as">
-			<sdpi-select setting="textMode" default="auto">
-				<option value="auto">Percent, or tokens with no ceiling</option>
-				<option value="percent">Always percent</option>
-				<option value="tokens">Always tokens</option>
-			</sdpi-select>
 		</sdpi-item>
 
 		<sdpi-item label="Refresh">
@@ -157,45 +153,33 @@
 		</sdpi-item>
 
 		<details>
-			<summary>How “Session” works</summary>
+			<summary>Where the numbers come from</summary>
 			<p>
-				Claude's session limit is a <strong>5-hour block</strong>, not a rolling five hours. The
-				block opens on your first message and runs for five hours whatever you do inside it; when
-				it expires your usage drops back to zero and the next message opens a new one.
+				<strong>Session limit</strong> and <strong>Weekly limit</strong> are Anthropic's own
+				figures — the same source <code>/usage</code> reads — so they are exact, need no ceiling,
+				and the caption counts down to the real reset. Getting them means reading Claude Code's
+				OAuth token from your keychain; it is used only to ask Anthropic for your usage, and is
+				never logged or sent anywhere else. macOS will ask once for keychain access; choose
+				<em>Always Allow</em> or the key will sit at 0%.
 			</p>
 			<p>
-				So a session ring fills through the block and empties at the reset. While it is running,
-				the caption under the number counts down to that reset; once expired it reads
-				<code>RESET</code>.
-			</p>
-		</details>
-
-		<details>
-			<summary>What do I put in “Ceiling”?</summary>
-			<p>
-				It is the number of tokens that should read as 100%. Claude Code keeps no plan limits on
-				disk, so the plugin cannot know yours — you set it once.
+				The <strong>Tokens</strong> options are counted from your local transcripts instead. They
+				need a ceiling, but they can do what the API cannot: filter to one model, or use any
+				window you like. <em>Session block</em> models the 5-hour block — it opens on your first
+				message, runs five hours whatever you do inside it, then resets.
 			</p>
 			<p>
-				Long-press this key to open <code>/usage</code>, then run <code>npm run report</code> in
-				the plugin folder. If <code>/usage</code> says you are at 50% and the matching row in the
-				report reads 20M, your ceiling is about 40M.
-			</p>
-			<p>
-				Leave it empty and the ring stays dark, while the readout shows raw tokens instead of a
-				percentage. The key still works — it just cannot draw a proportion of nothing.
-			</p>
-			<p>
-				<strong>Only this model</strong> is a partial name: <code>fable</code> matches
-				<code>claude-fable-5</code>, <code>opus</code> covers every Opus. The report breaks usage
-				down per model so you can set a ceiling for one.
+				To set a token ceiling, run <code>npm run report</code> in the plugin folder and compare
+				against <code>/usage</code>. If <code>/usage</code> says 50% and the matching row reads
+				20M, the ceiling is about 40M. Left empty, the ring stays dark and the readout shows raw
+				tokens.
 			</p>
 		</details>
 
 		<script>
-			// sdpi-components hydrate asynchronously, so this both listens for changes
-			// and re-checks for a few seconds after load. Anything it cannot determine
-			// fails open — showing a field is always better than hiding one wrongly.
+			// sdpi-components hydrate asynchronously, so this listens for changes and
+			// re-checks for a few seconds after load. Anything it cannot determine
+			// fails open — showing a field is always safer than hiding one wrongly.
 			(function () {
 				function value(setting) {
 					var el = document.querySelector('[setting="' + setting + '"]');
@@ -208,20 +192,29 @@
 					if (el) el.style.display = visible ? "" : "none";
 				}
 
+				function showAll(selector, visible) {
+					var nodes = document.querySelectorAll(selector);
+					for (var i = 0; i < nodes.length; i++) show(nodes[i], visible);
+				}
+
 				function sync() {
 					var single = value("layout") === "single";
+					var primary = value("primaryTracks") || "limit-5h";
+					var secondary = value("secondaryTracks") || "limit-7d";
 
 					var heading = document.getElementById("primary-heading");
 					if (heading) heading.textContent = single ? "Ring" : "Outer ring";
 
-					var dualOnly = document.querySelectorAll("[data-dual-only]");
-					for (var i = 0; i < dualOnly.length; i++) show(dualOnly[i], !single);
+					showAll("[data-dual-only]", !single);
 
-					show(document.getElementById("primary-custom"), value("primaryHours") === "custom");
-					show(
-						document.getElementById("secondary-custom"),
-						!single && value("secondaryHours") === "custom"
-					);
+					// Ceiling and model only mean anything for the token-counted modes.
+					var primaryTokens = primary.indexOf("limit-") !== 0;
+					var secondaryTokens = secondary.indexOf("limit-") !== 0;
+					showAll(".primary-tokens", primaryTokens);
+					showAll(".secondary-tokens", !single && secondaryTokens);
+
+					show(document.getElementById("primary-custom"), primary === "custom");
+					show(document.getElementById("secondary-custom"), !single && secondary === "custom");
 				}
 
 				function safeSync() {

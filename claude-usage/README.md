@@ -3,8 +3,35 @@
 Claude Code usage as Apple Watch style activity rings. Outer ring is the rolling
 session window, inner ring the rolling week.
 
-Everything is computed locally from your own transcripts. The plugin makes no
-network calls, reads no credentials, and needs no API key.
+## Where the numbers come from
+
+Two sources, and a ring picks one.
+
+**Anthropic's own figures — the default.** `GET api.anthropic.com/api/oauth/usage`
+returns the real utilization and reset time for both limit windows, which is the
+same source `/usage` reads. Exact percentages, real resets, nothing to calibrate.
+
+This needs Claude Code's OAuth token, which lives in your macOS keychain under
+`Claude Code-credentials` (on Windows, `~/.claude/.credentials.json`). The plugin
+reads only the `claudeAiOauth` branch — that blob also holds every authenticated
+MCP server's credentials, which are never touched — and uses the token for
+exactly one thing: that one authenticated GET. It is never logged, written, or
+sent anywhere else. **macOS will prompt once for keychain access; choose Always
+Allow or the key sits at "NO DATA".**
+
+The endpoint is undocumented, so Anthropic could change it. Two behaviours are
+load-bearing and were learned the hard way:
+
+- **The User-Agent must look like Claude Code.** Anything else gets an
+  aggressively rate-limited bucket and persistent `429`s. Sending
+  `claude-usage-streamdeck/0.1` put a machine in a penalty box for an hour.
+- **A failure triggers a cooldown, not a retry.** Every visible key asks for a
+  redraw, so without one a failure makes each key fire its own request — pushing
+  the rate *up* exactly when the API wants less.
+
+**Your local transcripts.** Everything the API cannot answer: per-model usage,
+arbitrary windows, burn rate, and token counts. These need a ceiling you set
+once. This path makes no network calls and reads no credentials.
 
 <!-- Run `npm run preview` to render the key art to dist/preview.html. -->
 
@@ -229,10 +256,13 @@ much less once the first scan has been done.
 
 ## Known limits
 
-- **The weekly window is rolling.** The session limit is modelled properly as a
-  5-hour block, but Claude's weekly limit resets on a fixed schedule whose anchor
-  is not readable from disk, so the week is a trailing 7 days. It tracks closely
-  during steady use and will disagree around a reset boundary.
+- **The token modes are approximations; the limit modes are not.** A ring set to
+  a limit reports Anthropic's own number. A ring counting tokens depends on the
+  ceiling you gave it and on a uniform model weighting, and its weekly window is
+  a trailing 7 days rather than Claude's actual reset schedule.
+- **The usage endpoint is undocumented and rate-limited.** If it changes or
+  starts refusing, limit rings show "NO DATA" or "STALE" rather than a wrong
+  number, and the plugin log says which.
 - **Percentages are only as good as your ceiling.** Recalibrate if you change
   plan or your model mix shifts a lot.
 - **One machine only.** It reads the transcripts on the machine it runs on. If

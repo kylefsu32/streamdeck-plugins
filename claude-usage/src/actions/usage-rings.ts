@@ -9,6 +9,7 @@ import streamDeck, {
 } from "@elgato/streamdeck";
 
 import { currentSessionBlock, fraction, summarise } from "../engine/aggregate";
+import { limitsService, type LimitsSnapshot } from "../engine/limits";
 import { usageService } from "../engine/service";
 import { compactDuration, compactTokens, percentLabel } from "../render/format";
 import { renderReadout, type ReadoutRow } from "../render/readout";
@@ -18,79 +19,102 @@ import { LongPressTracker } from "./press";
 
 const HOUR = 3_600_000;
 
+/** Claude's session limit runs in 5-hour blocks. */
+const SESSION_HOURS = 5;
+
 const log = streamDeck.logger.createScope("rings");
 
-/**
- * Property inspector fields hand back strings — a number textfield stores
- * "40000000", not 40000000 — so every numeric setting has to tolerate both.
- */
+/** Property inspector fields hand back strings, so numbers arrive as text. */
 type Numeric = number | string;
 
 export type RingsSettings = {
-	/** One ring, or an outer/inner pair. */
 	layout?: "single" | "dual";
 
-	/** Outer ring in dual layout; the only ring in single layout. */
-	primaryHours?: Numeric;
+	primaryTracks?: string;
 	primaryCustomHours?: Numeric;
 	primaryCeiling?: Numeric;
 	primaryModel?: string;
 	primaryColour?: string;
 
-	/** Inner ring. Ignored in single layout. */
-	secondaryHours?: Numeric;
+	secondaryTracks?: string;
 	secondaryCustomHours?: Numeric;
 	secondaryCeiling?: Numeric;
 	secondaryModel?: string;
 	secondaryColour?: string;
 
-	/** Toggled by pressing the key. Off means rings only. */
 	showText?: boolean;
-	textMode?: "auto" | "percent" | "tokens";
 	refreshSeconds?: Numeric;
 } & LongPressSettings;
 
-/** Claude's session limit runs in 5-hour blocks. */
-const SESSION_HOURS = 5;
-
 const DEFAULTS = {
 	layout: "dual" as const,
-	primaryWindow: "session",
+	primaryTracks: "limit-5h",
 	primaryColour: "coral",
-	secondaryWindow: "168",
+	secondaryTracks: "limit-7d",
 	secondaryColour: "teal",
 	showText: false,
-	textMode: "auto" as const,
 	refreshSeconds: 20
 };
 
+/**
+ * What a ring is measuring. `limit` comes from Anthropic and needs no ceiling;
+ * the others are counted from local transcripts and do.
+ */
+type RingMode =
+	| { kind: "limit"; window: "fiveHour" | "sevenDay" }
+	| { kind: "session"; hours: number }
+	| { kind: "window"; hours: number };
+
 type ResolvedRing = {
-	/** True when this ring tracks the 5-hour session block. */
-	session: boolean;
-	hours: number;
+	mode: RingMode;
 	ceiling: number;
 	model: string | undefined;
 	colourName: string;
-	effective: number;
+	/** 0..n of the limit or ceiling. */
 	value: number;
-	/** Time until the session block resets. */
+	/** Local token total; undefined for API-sourced rings. */
+	effective?: number;
+	/** Countdown to the reset, when one is known. */
 	remainingMs?: number;
-	/** False when a session block has expired and usage is back to zero. */
-	active: boolean;
+	/** False when a session block has expired, or the API numbers are stale. */
+	healthy: boolean;
+	/**
+	 * False when the API has never answered. Distinguishing this from a genuine
+	 * 0% matters: a denied keychain prompt would otherwise look like "no usage"
+	 * rather than "no data".
+	 */
+	hasData: boolean;
 };
 
+function parseMode(tracks: string | undefined, custom: Numeric | undefined, fallback: string): RingMode {
+	const raw = String(tracks ?? fallback);
+	switch (raw) {
+		case "limit-5h":
+			return { kind: "limit", window: "fiveHour" };
+		case "limit-7d":
+			return { kind: "limit", window: "sevenDay" };
+		case "session":
+			return { kind: "session", hours: SESSION_HOURS };
+		case "custom":
+			return { kind: "window", hours: positive(custom, 24) };
+		default:
+			return { kind: "window", hours: positive(raw, 24) };
+	}
+}
+
 /**
- * Activity rings over the local transcripts.
+ * Two concentric activity rings, or one.
  *
- * A key is either a pair (session outside, week inside) or a single ring, which
- * is what makes per-window and per-model keys possible: one key for the 5-hour
- * window, another for the week, another filtered to a single model.
+ * By default both come from Anthropic's own usage figures — the same source
+ * `/usage` reads — so the percentages are exact and need no calibration. The
+ * transcript-derived modes remain for what the API cannot answer: per-model
+ * usage, and arbitrary windows.
  */
 @action({ UUID: "com.kylefsu.claude-usage.rings" })
 export class UsageRings extends SingletonAction<RingsSettings> {
 	readonly #press = new LongPressTracker();
 
-	#unsubscribe: (() => void) | undefined;
+	#unsubscribe: (() => void)[] = [];
 
 	override onWillAppear(ev: WillAppearEvent<RingsSettings>): void | Promise<void> {
 		log.info(`appeared (${ev.action.id})`);
@@ -107,8 +131,10 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 			remaining += 1;
 		}
 		if (remaining <= 1) {
-			this.#unsubscribe?.();
-			this.#unsubscribe = undefined;
+			for (const off of this.#unsubscribe) {
+				off();
+			}
+			this.#unsubscribe = [];
 		}
 	}
 
@@ -117,7 +143,6 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 		return this.#paint();
 	}
 
-	/** Arms the long press; the short action waits for key-up. */
 	override onKeyDown(ev: KeyDownEvent<RingsSettings>): void {
 		const settings = ev.payload.settings ?? {};
 		this.#press.down(ev.action.id, longPressThreshold(settings), () => {
@@ -129,30 +154,31 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 		});
 	}
 
-	/** A short press reveals or hides the readout; a long press already acted. */
+	/** A short press swaps the face; a long press already acted. */
 	override async onKeyUp(ev: KeyUpEvent<RingsSettings>): Promise<void> {
 		if (!this.#press.up(ev.action.id)) {
 			return;
 		}
 		const settings = ev.payload.settings ?? {};
-		const showText = !(settings.showText ?? DEFAULTS.showText);
-		await ev.action.setSettings({ ...settings, showText });
+		await ev.action.setSettings({ ...settings, showText: !(settings.showText ?? DEFAULTS.showText) });
+		// A deliberate press is worth a fresh fetch, cooldown notwithstanding.
+		void limitsService.refresh(true);
 		await this.#paint();
 	}
 
 	#ensureSubscribed(): void {
-		if (!this.#unsubscribe) {
-			this.#unsubscribe = usageService.subscribe(() => void this.#paint());
+		if (this.#unsubscribe.length === 0) {
+			this.#unsubscribe.push(limitsService.subscribe(() => void this.#paint()));
+			this.#unsubscribe.push(usageService.subscribe(() => void this.#paint()));
 		}
 	}
 
 	#applySettings(settings: RingsSettings | undefined): void {
-		const widest = Math.max(
-			windowOf(settings?.primaryHours, settings?.primaryCustomHours, DEFAULTS.primaryWindow).hours,
-			settings?.layout === "single"
-				? 0
-				: windowOf(settings?.secondaryHours, settings?.secondaryCustomHours, DEFAULTS.secondaryWindow).hours
-		);
+		const modes = [
+			parseMode(settings?.primaryTracks, settings?.primaryCustomHours, DEFAULTS.primaryTracks),
+			parseMode(settings?.secondaryTracks, settings?.secondaryCustomHours, DEFAULTS.secondaryTracks)
+		];
+		const widest = Math.max(...modes.map((m) => (m.kind === "limit" ? 0 : m.hours)), SESSION_HOURS);
 		usageService.requireWindow(widest * HOUR);
 		usageService.setInterval(positive(settings?.refreshSeconds, DEFAULTS.refreshSeconds) * 1000);
 	}
@@ -160,19 +186,20 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 	async #paint(): Promise<void> {
 		const now = Date.now();
 		const samples = usageService.samples;
+		const limits = limitsService.snapshot;
 
 		for (const instance of this.actions) {
 			let settings: RingsSettings = {};
 			try {
 				settings = (await instance.getSettings<RingsSettings>()) ?? {};
 			} catch {
-				continue; // instance vanished between iteration and read
+				continue;
 			}
 
 			const single = (settings.layout ?? DEFAULTS.layout) === "single";
 
-			const primary = resolve(samples, now, {
-				...windowOf(settings.primaryHours, settings.primaryCustomHours, DEFAULTS.primaryWindow),
+			const primary = resolve(samples, limits, now, {
+				mode: parseMode(settings.primaryTracks, settings.primaryCustomHours, DEFAULTS.primaryTracks),
 				ceiling: nonNegative(settings.primaryCeiling, 0),
 				model: settings.primaryModel,
 				colourName: settings.primaryColour ?? DEFAULTS.primaryColour
@@ -180,20 +207,18 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 
 			const secondary = single
 				? undefined
-				: resolve(samples, now, {
-						...windowOf(settings.secondaryHours, settings.secondaryCustomHours, DEFAULTS.secondaryWindow),
+				: resolve(samples, limits, now, {
+						mode: parseMode(settings.secondaryTracks, settings.secondaryCustomHours, DEFAULTS.secondaryTracks),
 						ceiling: nonNegative(settings.secondaryCeiling, 0),
 						model: settings.secondaryModel,
 						colourName: settings.secondaryColour ?? DEFAULTS.secondaryColour
 					});
 
-			// Pressed swaps the face entirely: text with no rings, so the figures
-			// get the whole canvas instead of the rings' centre hole.
 			const image = (settings.showText ?? DEFAULTS.showText)
 				? renderReadout({
 						background: PALETTE.background,
-						rows: [primary, ...(secondary ? [secondary] : [])].map((ring) =>
-							this.#row(settings, ring, ring === primary ? "coral" : "teal")
+						rows: [primary, ...(secondary ? [secondary] : [])].map((ring, index) =>
+							row(ring, index === 0 ? "coral" : "teal")
 						)
 					})
 				: renderRings({
@@ -207,8 +232,9 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 					});
 
 			log.debug(
-				`paint ${single ? "single" : "dual"} primary=${primary.effective.toFixed(0)}` +
-					` value=${primary.value.toFixed(3)} samples=${samples.length} imageChars=${image.length}`
+				`paint ${primary.mode.kind} value=${primary.value.toFixed(3)}` +
+					` samples=${samples.length} limitsAge=${limits.fetchedAt ? now - limits.fetchedAt : -1}` +
+					(limits.error ? ` limitsError=${limits.error}` : "")
 			);
 
 			try {
@@ -218,94 +244,87 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 			}
 		}
 	}
-
-	#row(settings: RingsSettings, ring: ResolvedRing, fallback: ColourName): ReadoutRow {
-		const mode = settings.textMode ?? DEFAULTS.textMode;
-		// A percentage without a ceiling would be meaningless, so "auto" falls
-		// back to the raw effective-token count until one is calibrated.
-		const asPercent = mode === "percent" || (mode === "auto" && ring.ceiling > 0);
-		const palette = colour(ring.colourName, fallback);
-
-		return {
-			value: asPercent ? percentLabel(ring.value) : compactTokens(ring.effective),
-			label: subLabel(ring),
-			// Over budget reads red here too, matching what the ring would show.
-			colour: ring.value > 1 ? palette.over : palette.lit
-		};
-	}
 }
+
+type RingConfig = { mode: RingMode; ceiling: number; model: string | undefined; colourName: string };
 
 function resolve(
 	samples: Parameters<typeof summarise>[0],
+	limits: LimitsSnapshot,
 	now: number,
-	config: { session: boolean; hours: number; ceiling: number; model: string | undefined; colourName: string }
+	config: RingConfig
 ): ResolvedRing {
-	if (config.session) {
-		const block = currentSessionBlock(samples, now, config.hours * HOUR, { modelFilter: config.model });
+	if (config.mode.kind === "limit") {
+		const window = config.mode.window === "fiveHour" ? limits.fiveHour : limits.sevenDay;
+		return {
+			...config,
+			value: window?.fraction ?? 0,
+			remainingMs: window?.resetsAt === undefined ? undefined : Math.max(0, window.resetsAt - now),
+			healthy: window !== undefined && !limits.stale,
+			hasData: window !== undefined
+		};
+	}
+
+	if (config.mode.kind === "session") {
+		const block = currentSessionBlock(samples, now, config.mode.hours * HOUR, { modelFilter: config.model });
 		return {
 			...config,
 			effective: block.effective,
 			value: fraction(block.effective, config.ceiling),
 			remainingMs: block.remainingMs,
-			active: block.active
+			healthy: block.active,
+			hasData: true
 		};
 	}
 
-	const stat = summarise(samples, now, config.hours * HOUR, { modelFilter: config.model });
+	const stat = summarise(samples, now, config.mode.hours * HOUR, { modelFilter: config.model });
 	return {
 		...config,
 		effective: stat.effective,
 		value: fraction(stat.effective, config.ceiling),
-		active: true
+		healthy: true,
+		hasData: true
 	};
 }
 
-/**
- * For a session ring the time left before the block resets is the most useful
- * caption; elsewhere a model filter identifies the key, falling back to the
- * window length.
- */
-function subLabel(ring: ResolvedRing): string {
-	if (ring.session) {
-		if (!ring.active) {
-			return "RESET";
+function row(ring: ResolvedRing, fallback: ColourName): ReadoutRow {
+	const palette = colour(ring.colourName, fallback);
+	// A ceiling-less token ring cannot express a percentage, so it shows tokens.
+	const showTokens = ring.mode.kind !== "limit" && ring.ceiling <= 0 && ring.effective !== undefined;
+
+	return {
+		value: !ring.hasData ? "—" : showTokens ? compactTokens(ring.effective ?? 0) : percentLabel(ring.value),
+		label: label(ring),
+		colour: ring.value > 1 ? palette.over : palette.lit
+	};
+}
+
+function label(ring: ResolvedRing): string {
+	if (ring.mode.kind === "limit") {
+		if (!ring.hasData) {
+			return "NO DATA";
 		}
-		return ring.remainingMs === undefined ? "5H" : compactDuration(ring.remainingMs);
+		if (!ring.healthy) {
+			return "STALE";
+		}
+		return ring.remainingMs === undefined
+			? ring.mode.window === "fiveHour"
+				? "5H"
+				: "7D"
+			: compactDuration(ring.remainingMs);
+	}
+
+	if (ring.mode.kind === "session") {
+		return ring.healthy && ring.remainingMs !== undefined ? compactDuration(ring.remainingMs) : "RESET";
 	}
 
 	const model = ring.model?.trim();
 	if (model) {
 		return model.replace(/^claude[-_]?/i, "").slice(0, 6).toUpperCase();
 	}
-	return windowLabel(ring.hours);
+	return ring.mode.hours >= 24 && ring.mode.hours % 24 === 0 ? `${ring.mode.hours / 24}D` : `${ring.mode.hours}H`;
 }
 
-/**
- * The picker stores either "session", "custom", or a literal number of hours.
- */
-function windowOf(
-	preset: Numeric | undefined,
-	custom: Numeric | undefined,
-	fallback: string
-): { session: boolean; hours: number } {
-	const raw = String(preset ?? fallback);
-	if (raw === "session") {
-		return { session: true, hours: SESSION_HOURS };
-	}
-	if (raw === "custom") {
-		return { session: false, hours: positive(custom, Number(fallback) || SESSION_HOURS) };
-	}
-	return { session: false, hours: positive(raw, Number(fallback) || SESSION_HOURS) };
-}
-
-function windowLabel(hours: number): string {
-	if (hours >= 24 && hours % 24 === 0) {
-		return `${hours / 24}D`;
-	}
-	return `${hours}H`;
-}
-
-/** Accepts the strings the property inspector stores as well as real numbers. */
 function toNumber(value: unknown): number | undefined {
 	if (typeof value === "number") {
 		return Number.isFinite(value) ? value : undefined;
@@ -326,4 +345,3 @@ function nonNegative(value: unknown, fallback: number): number {
 	const parsed = toNumber(value);
 	return parsed !== undefined && parsed >= 0 ? parsed : fallback;
 }
-
