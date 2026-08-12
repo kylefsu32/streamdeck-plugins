@@ -40,10 +40,10 @@
 		<h4 id="primary-heading">Ring</h4>
 
 		<sdpi-item label="Tracks">
-			<sdpi-select setting="primaryHours" default="5">
-				<option value="5">Session — last 5 hours</option>
-				<option value="24">Day — last 24 hours</option>
+			<sdpi-select setting="primaryHours" default="session">
+				<option value="session">Session — the 5-hour limit</option>
 				<option value="168">Week — last 7 days</option>
+				<option value="24">Day — last 24 hours</option>
 				<option value="custom">Custom…</option>
 			</sdpi-select>
 		</sdpi-item>
@@ -75,9 +75,9 @@
 
 		<sdpi-item label="Tracks" data-dual-only>
 			<sdpi-select setting="secondaryHours" default="168">
-				<option value="5">Session — last 5 hours</option>
-				<option value="24">Day — last 24 hours</option>
+				<option value="session">Session — the 5-hour limit</option>
 				<option value="168">Week — last 7 days</option>
+				<option value="24">Day — last 24 hours</option>
 				<option value="custom">Custom…</option>
 			</sdpi-select>
 		</sdpi-item>
@@ -155,6 +155,20 @@
 		<sdpi-item label="Command">
 			<sdpi-textfield setting="longPressCommand" placeholder="only used by “Run a command”"></sdpi-textfield>
 		</sdpi-item>
+
+		<details>
+			<summary>How “Session” works</summary>
+			<p>
+				Claude's session limit is a <strong>5-hour block</strong>, not a rolling five hours. The
+				block opens on your first message and runs for five hours whatever you do inside it; when
+				it expires your usage drops back to zero and the next message opens a new one.
+			</p>
+			<p>
+				So a session ring fills through the block and empties at the reset. While it is running,
+				the caption under the number counts down to that reset; once expired it reads
+				<code>RESET</code>.
+			</p>
+		</details>
 
 		<details>
 			<summary>What do I put in “Ceiling”?</summary>

@@ -102,12 +102,21 @@ the Watch does it.
 Each key is either **one ring** or **two**, and every ring is configured
 independently:
 
-| Setting  | Notes                                                             |
-| -------- | ----------------------------------------------------------------- |
-| Window   | In hours. `5` for the session, `168` for a week, `24` for a day    |
-| Ceiling  | Effective tokens that mean 100%. Empty leaves the ring dark        |
-| Model    | Case-insensitive substring of the model id. Empty counts every one |
-| Colour   | Coral, teal, violet, amber, green, blue                            |
+| Setting  | Notes                                                                    |
+| -------- | ------------------------------------------------------------------------ |
+| Tracks   | Session (the 5-hour limit), week, day, or a custom number of hours        |
+| Ceiling  | Effective tokens that mean 100%. Empty leaves the ring dark               |
+| Model    | Case-insensitive substring of the model id. Empty counts every one        |
+| Colour   | Coral, teal, violet, amber, green, blue                                   |
+
+**Session is a block, not a trailing window.** Claude's session limit opens on
+your first message and runs for five hours whatever you do inside it; when it
+expires your usage drops to zero and the next message opens a new one. A
+trailing-five-hours sum would disagree with `/usage` most of the time — it keeps
+counting work the real limit has already forgiven, and it never shows the reset.
+So a session ring fills through the block and empties at the reset, and its
+caption counts down to that reset (`RESET` once expired). Blocks are anchored to
+the top of the hour.
 
 That is what makes single-ring keys worth having — one key per thing you care
 about, each its own colour:
@@ -220,10 +229,10 @@ much less once the first scan has been done.
 
 ## Known limits
 
-- **Windows are rolling, not aligned.** Claude's real session window starts at
-  your first message and its weekly limit resets on a fixed schedule. A rolling
-  5h/7d approximation tracks closely during active work but will disagree around
-  a reset boundary.
+- **The weekly window is rolling.** The session limit is modelled properly as a
+  5-hour block, but Claude's weekly limit resets on a fixed schedule whose anchor
+  is not readable from disk, so the week is a trailing 7 days. It tracks closely
+  during steady use and will disagree around a reset boundary.
 - **Percentages are only as good as your ceiling.** Recalibrate if you change
   plan or your model mix shifts a lot.
 - **One machine only.** It reads the transcripts on the machine it runs on. If

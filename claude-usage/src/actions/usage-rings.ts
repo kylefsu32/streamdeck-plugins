@@ -8,9 +8,9 @@ import streamDeck, {
 	type WillDisappearEvent
 } from "@elgato/streamdeck";
 
-import { fraction, summarise } from "../engine/aggregate";
+import { currentSessionBlock, fraction, summarise } from "../engine/aggregate";
 import { usageService } from "../engine/service";
-import { compactTokens, percentLabel } from "../render/format";
+import { compactDuration, compactTokens, percentLabel } from "../render/format";
 import { renderReadout, type ReadoutRow } from "../render/readout";
 import { colour, GEOMETRY, PALETTE, renderRings, type ColourName } from "../render/rings";
 import { longPressThreshold, performLongPress, type LongPressSettings } from "../system/launch";
@@ -50,11 +50,14 @@ export type RingsSettings = {
 	refreshSeconds?: Numeric;
 } & LongPressSettings;
 
+/** Claude's session limit runs in 5-hour blocks. */
+const SESSION_HOURS = 5;
+
 const DEFAULTS = {
 	layout: "dual" as const,
-	primaryHours: 5,
+	primaryWindow: "session",
 	primaryColour: "coral",
-	secondaryHours: 168,
+	secondaryWindow: "168",
 	secondaryColour: "teal",
 	showText: false,
 	textMode: "auto" as const,
@@ -62,12 +65,18 @@ const DEFAULTS = {
 };
 
 type ResolvedRing = {
+	/** True when this ring tracks the 5-hour session block. */
+	session: boolean;
 	hours: number;
 	ceiling: number;
 	model: string | undefined;
 	colourName: string;
 	effective: number;
 	value: number;
+	/** Time until the session block resets. */
+	remainingMs?: number;
+	/** False when a session block has expired and usage is back to zero. */
+	active: boolean;
 };
 
 /**
@@ -139,10 +148,10 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 
 	#applySettings(settings: RingsSettings | undefined): void {
 		const widest = Math.max(
-			windowHours(settings?.primaryHours, settings?.primaryCustomHours, DEFAULTS.primaryHours),
+			windowOf(settings?.primaryHours, settings?.primaryCustomHours, DEFAULTS.primaryWindow).hours,
 			settings?.layout === "single"
 				? 0
-				: windowHours(settings?.secondaryHours, settings?.secondaryCustomHours, DEFAULTS.secondaryHours)
+				: windowOf(settings?.secondaryHours, settings?.secondaryCustomHours, DEFAULTS.secondaryWindow).hours
 		);
 		usageService.requireWindow(widest * HOUR);
 		usageService.setInterval(positive(settings?.refreshSeconds, DEFAULTS.refreshSeconds) * 1000);
@@ -163,7 +172,7 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 			const single = (settings.layout ?? DEFAULTS.layout) === "single";
 
 			const primary = resolve(samples, now, {
-				hours: windowHours(settings.primaryHours, settings.primaryCustomHours, DEFAULTS.primaryHours),
+				...windowOf(settings.primaryHours, settings.primaryCustomHours, DEFAULTS.primaryWindow),
 				ceiling: nonNegative(settings.primaryCeiling, 0),
 				model: settings.primaryModel,
 				colourName: settings.primaryColour ?? DEFAULTS.primaryColour
@@ -172,7 +181,7 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 			const secondary = single
 				? undefined
 				: resolve(samples, now, {
-						hours: windowHours(settings.secondaryHours, settings.secondaryCustomHours, DEFAULTS.secondaryHours),
+						...windowOf(settings.secondaryHours, settings.secondaryCustomHours, DEFAULTS.secondaryWindow),
 						ceiling: nonNegative(settings.secondaryCeiling, 0),
 						model: settings.secondaryModel,
 						colourName: settings.secondaryColour ?? DEFAULTS.secondaryColour
@@ -229,23 +238,64 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 function resolve(
 	samples: Parameters<typeof summarise>[0],
 	now: number,
-	config: { hours: number; ceiling: number; model: string | undefined; colourName: string }
+	config: { session: boolean; hours: number; ceiling: number; model: string | undefined; colourName: string }
 ): ResolvedRing {
+	if (config.session) {
+		const block = currentSessionBlock(samples, now, config.hours * HOUR, { modelFilter: config.model });
+		return {
+			...config,
+			effective: block.effective,
+			value: fraction(block.effective, config.ceiling),
+			remainingMs: block.remainingMs,
+			active: block.active
+		};
+	}
+
 	const stat = summarise(samples, now, config.hours * HOUR, { modelFilter: config.model });
 	return {
 		...config,
 		effective: stat.effective,
-		value: fraction(stat.effective, config.ceiling)
+		value: fraction(stat.effective, config.ceiling),
+		active: true
 	};
 }
 
-/** A model filter is the more useful caption when one is set. */
+/**
+ * For a session ring the time left before the block resets is the most useful
+ * caption; elsewhere a model filter identifies the key, falling back to the
+ * window length.
+ */
 function subLabel(ring: ResolvedRing): string {
+	if (ring.session) {
+		if (!ring.active) {
+			return "RESET";
+		}
+		return ring.remainingMs === undefined ? "5H" : compactDuration(ring.remainingMs);
+	}
+
 	const model = ring.model?.trim();
 	if (model) {
 		return model.replace(/^claude[-_]?/i, "").slice(0, 6).toUpperCase();
 	}
 	return windowLabel(ring.hours);
+}
+
+/**
+ * The picker stores either "session", "custom", or a literal number of hours.
+ */
+function windowOf(
+	preset: Numeric | undefined,
+	custom: Numeric | undefined,
+	fallback: string
+): { session: boolean; hours: number } {
+	const raw = String(preset ?? fallback);
+	if (raw === "session") {
+		return { session: true, hours: SESSION_HOURS };
+	}
+	if (raw === "custom") {
+		return { session: false, hours: positive(custom, Number(fallback) || SESSION_HOURS) };
+	}
+	return { session: false, hours: positive(raw, Number(fallback) || SESSION_HOURS) };
 }
 
 function windowLabel(hours: number): string {
@@ -277,13 +327,3 @@ function nonNegative(value: unknown, fallback: number): number {
 	return parsed !== undefined && parsed >= 0 ? parsed : fallback;
 }
 
-/**
- * The window picker stores a preset in hours, or the literal "custom" — in
- * which case the companion field holds the real value.
- */
-function windowHours(preset: Numeric | undefined, custom: Numeric | undefined, fallback: number): number {
-	if (String(preset) === "custom") {
-		return positive(custom, fallback);
-	}
-	return positive(preset, fallback);
-}

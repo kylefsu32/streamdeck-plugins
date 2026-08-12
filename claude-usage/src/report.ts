@@ -9,18 +9,32 @@
  * Usage: npm run report
  */
 
-import { burnRatePerHour, summarise, summariseByModel } from "./engine/aggregate";
+import { burnRatePerHour, currentSessionBlock, summarise, summariseByModel } from "./engine/aggregate";
 import { TranscriptScanner } from "./engine/scanner";
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
+// The session limit is a fixed block and gets its own section; these are the
+// plain trailing windows.
 const WINDOWS: { label: string; ms: number }[] = [
 	{ label: "last 1h", ms: HOUR },
-	{ label: "last 5h  (session)", ms: 5 * HOUR },
 	{ label: "last 24h", ms: DAY },
 	{ label: "last 7d  (week)", ms: 7 * DAY }
 ];
+
+function clock(ts: number): string {
+	const d = new Date(ts);
+	const pad = (n: number) => String(n).padStart(2, "0");
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function duration(ms: number): string {
+	const minutes = Math.max(0, Math.round(ms / 60_000));
+	const h = Math.floor(minutes / 60);
+	const m = minutes % 60;
+	return h > 0 ? `${h}h${String(m).padStart(2, "0")}m` : `${m}m`;
+}
 
 function compact(value: number): string {
 	if (value < 1_000) return String(Math.round(value));
@@ -85,13 +99,34 @@ async function main(): Promise<void> {
 		);
 	}
 
+	// The session limit runs in fixed 5-hour blocks, so this is the number to
+	// compare against the session percentage in /usage.
+	const block = currentSessionBlock(scanner.samples, now, 5 * HOUR);
+	console.log("");
+	console.log("session block — the 5-hour limit");
+	console.log("─".repeat(62));
+	if (block.active && block.start !== undefined && block.end !== undefined) {
+		console.log(`used      ${compact(block.effective)} effective over ${block.calls} calls`);
+		console.log(`opened    ${clock(block.start)}`);
+		console.log(`resets    ${clock(block.end)}   (in ${duration(block.remainingMs ?? 0)})`);
+	} else if (block.end !== undefined) {
+		console.log(`used      0 — the last block ended ${clock(block.end)}`);
+		console.log("          your next message opens a fresh one");
+	} else {
+		console.log("used      0 — no usage on record");
+	}
+
 	const rate = burnRatePerHour(scanner.samples, now, HOUR);
 	console.log("");
 	console.log(`burn rate (last 1h)   ${compact(rate)} effective tokens/hour`);
 
 	// Per-model, so a model-specific key can be given its own ceiling.
+	// Measure the per-model split over the block itself, so these rows add up to
+	// the session figure above rather than a trailing five hours.
+	const sessionMs = block.active && block.start !== undefined ? now - block.start : 5 * HOUR;
+
 	for (const window of [
-		{ label: "session", ms: 5 * HOUR },
+		{ label: "session block", ms: sessionMs },
 		{ label: `history (${days}d)`, ms: days * DAY }
 	]) {
 		const rows = summariseByModel(scanner.samples, now, window.ms).filter((row) => row.stat.calls > 0);

@@ -8,7 +8,7 @@ import streamDeck, {
 	type WillDisappearEvent
 } from "@elgato/streamdeck";
 
-import { burnRatePerHour, fraction, summarise, timeToCeiling } from "../engine/aggregate";
+import { burnRatePerHour, currentSessionBlock, fraction, timeToCeiling, type SessionBlock } from "../engine/aggregate";
 import { usageService } from "../engine/service";
 import { compactDuration, compactTokens } from "../render/format";
 import { renderReadout } from "../render/readout";
@@ -131,13 +131,15 @@ export class BurnRate extends SingletonAction<BurnSettings> {
 
 			const filter = { modelFilter: settings.model };
 			const rate = burnRatePerHour(samples, now, rateWindow, filter);
-			const session = summarise(samples, now, sessionMs, filter);
-			const used = fraction(session.effective, ceiling);
+			// The session limit is a fixed block, so measure against the block
+			// that is currently accruing rather than a trailing window.
+			const block = currentSessionBlock(samples, now, sessionMs, filter);
+			const used = fraction(block.effective, ceiling);
 
 			const palette = colour(settings.ringColour, "coral");
 			const readout =
 				(settings.display ?? DEFAULTS.display) === "eta"
-					? this.#eta(session.effective, ceiling, rate)
+					? this.#eta(block, ceiling, rate)
 					: { value: compactTokens(rate), label: "/HR" };
 
 			// Pressed swaps the face entirely: text with no ring.
@@ -159,18 +161,28 @@ export class BurnRate extends SingletonAction<BurnSettings> {
 		}
 	}
 
-	#eta(used: number, ceiling: number, rate: number): { value: string; label: string } {
+	/**
+	 * Whichever comes first: hitting the ceiling, or the block resetting. At a
+	 * low enough rate the reset always wins, and saying "3h to limit" when the
+	 * limit clears in 40 minutes would be actively misleading.
+	 */
+	#eta(block: SessionBlock, ceiling: number, rate: number): { value: string; label: string } {
 		if (ceiling <= 0) {
 			return { value: "—", label: "NO CEILING" };
 		}
-		const remainingMs = timeToCeiling(used, ceiling, rate);
-		if (remainingMs === undefined) {
-			return { value: "∞", label: "LEFT" };
+
+		const toCeiling = timeToCeiling(block.effective, ceiling, rate);
+		if (toCeiling === 0) {
+			return { value: "0", label: "TO LIMIT" };
 		}
-		if (remainingMs === 0) {
-			return { value: "0", label: "LEFT" };
+
+		if (toCeiling === undefined || (block.remainingMs !== undefined && toCeiling > block.remainingMs)) {
+			return block.remainingMs === undefined
+				? { value: "—", label: "IDLE" }
+				: { value: compactDuration(block.remainingMs), label: "TO RESET" };
 		}
-		return { value: compactDuration(remainingMs), label: "LEFT" };
+
+		return { value: compactDuration(toCeiling), label: "TO LIMIT" };
 	}
 }
 
