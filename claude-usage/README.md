@@ -136,6 +136,38 @@ takes the same model filter and colour, so you can watch one model's rate.
 The rate is effective tokens per hour over the rate window, measured against
 wall-clock time — an idle stretch pulls it down rather than being ignored.
 
+## Long press
+
+Holding a key opens Claude Code's own `/usage` view in a terminal. That is the
+authoritative number, straight from Claude, next to this plugin's calibrated
+estimate — and it is how you recalibrate a ceiling when it drifts.
+
+| Setting   | Default    | Notes                                             |
+| --------- | ---------- | ------------------------------------------------- |
+| Holding does | Open /usage | Or run a command of your own, or nothing       |
+| Hold for  | 600ms      | 300–1500ms                                        |
+| Terminal  | `Terminal` | Any app name — `iTerm`, `Ghostty`, `WezTerm`      |
+| Open in   | `~`        | Directory the session starts in                   |
+| Command   | —          | Used only by "Run a command"                      |
+
+The SDK has no long-press event, so it is timed from key-down: the long action
+fires while the key is still held, and the following key-up is swallowed so a
+long press never also toggles the readout.
+
+Two implementation notes, because both were failure modes worth avoiding:
+
+- It launches by writing a small `.command` script and handing it to `open -a`,
+  **not** by driving the terminal with AppleScript. AppleScript would need
+  Stream Deck to hold Automation permission for that specific terminal, and a
+  missed or denied TCC prompt leaves the key silently doing nothing. `open` is a
+  launch, not an Apple event, so no permission is involved — and any terminal
+  works by name rather than needing per-app scripting terminology.
+- That script re-execs through your login shell, because `claude` usually lives
+  in `~/.local/bin` and a `.command` file does not inherit it on PATH.
+
+Failures are logged rather than swallowed; the key flashes an alert if the long
+press had nothing to run.
+
 ## Install
 
 Requires the Stream Deck desktop app 6.5+ and Node 20+.

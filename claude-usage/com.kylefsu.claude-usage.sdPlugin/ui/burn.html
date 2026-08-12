@@ -60,6 +60,33 @@
 			</sdpi-range>
 		</sdpi-item>
 
+		<sdpi-item label="Holding does">
+			<sdpi-select setting="longPress" default="usage">
+				<option value="usage">Open Claude Code's /usage</option>
+				<option value="command">Run a command</option>
+				<option value="none">Nothing</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Hold for">
+			<sdpi-range setting="longPressMs" min="300" max="1500" step="100" default="600" showlabels>
+				<span slot="min">0.3s</span>
+				<span slot="max">1.5s</span>
+			</sdpi-range>
+		</sdpi-item>
+
+		<sdpi-item label="Terminal">
+			<sdpi-textfield setting="terminalApp" placeholder="Terminal — or iTerm, Ghostty, WezTerm"></sdpi-textfield>
+		</sdpi-item>
+
+		<sdpi-item label="Open in">
+			<sdpi-textfield setting="usageDir" placeholder="~"></sdpi-textfield>
+		</sdpi-item>
+
+		<sdpi-item label="Command">
+			<sdpi-textfield setting="longPressCommand" placeholder="only used by “Run a command”"></sdpi-textfield>
+		</sdpi-item>
+
 		<details>
 			<summary>About the projection</summary>
 			<p>

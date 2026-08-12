@@ -3,6 +3,7 @@ import streamDeck, {
 	SingletonAction,
 	type DidReceiveSettingsEvent,
 	type KeyDownEvent,
+	type KeyUpEvent,
 	type WillAppearEvent,
 	type WillDisappearEvent
 } from "@elgato/streamdeck";
@@ -12,6 +13,8 @@ import { usageService } from "../engine/service";
 import { compactTokens, percentLabel } from "../render/format";
 import { renderReadout, type ReadoutRow } from "../render/readout";
 import { colour, GEOMETRY, PALETTE, renderRings, type ColourName } from "../render/rings";
+import { longPressThreshold, performLongPress, type LongPressSettings } from "../system/launch";
+import { LongPressTracker } from "./press";
 
 const HOUR = 3_600_000;
 
@@ -35,7 +38,7 @@ export type RingsSettings = {
 	showText?: boolean;
 	textMode?: "auto" | "percent" | "tokens";
 	refreshSeconds?: number;
-};
+} & LongPressSettings;
 
 const DEFAULTS = {
 	layout: "dual" as const,
@@ -66,6 +69,8 @@ type ResolvedRing = {
  */
 @action({ UUID: "com.kylefsu.claude-usage.rings" })
 export class UsageRings extends SingletonAction<RingsSettings> {
+	readonly #press = new LongPressTracker();
+
 	#unsubscribe: (() => void) | undefined;
 
 	override onWillAppear(ev: WillAppearEvent<RingsSettings>): void | Promise<void> {
@@ -74,7 +79,9 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 		return this.#paint();
 	}
 
-	override onWillDisappear(_ev: WillDisappearEvent<RingsSettings>): void {
+	override onWillDisappear(ev: WillDisappearEvent<RingsSettings>): void {
+		this.#press.cancel(ev.action.id);
+
 		let remaining = 0;
 		for (const _ of this.actions) {
 			remaining += 1;
@@ -90,8 +97,23 @@ export class UsageRings extends SingletonAction<RingsSettings> {
 		return this.#paint();
 	}
 
-	/** Pressing reveals or hides the readout; the rings themselves never change. */
-	override async onKeyDown(ev: KeyDownEvent<RingsSettings>): Promise<void> {
+	/** Arms the long press; the short action waits for key-up. */
+	override onKeyDown(ev: KeyDownEvent<RingsSettings>): void {
+		const settings = ev.payload.settings ?? {};
+		this.#press.down(ev.action.id, longPressThreshold(settings), () => {
+			if (performLongPress(settings)) {
+				void ev.action.showOk();
+			} else {
+				void ev.action.showAlert();
+			}
+		});
+	}
+
+	/** A short press reveals or hides the readout; a long press already acted. */
+	override async onKeyUp(ev: KeyUpEvent<RingsSettings>): Promise<void> {
+		if (!this.#press.up(ev.action.id)) {
+			return;
+		}
 		const settings = ev.payload.settings ?? {};
 		const showText = !(settings.showText ?? DEFAULTS.showText);
 		await ev.action.setSettings({ ...settings, showText });

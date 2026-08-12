@@ -3,6 +3,7 @@ import streamDeck, {
 	SingletonAction,
 	type DidReceiveSettingsEvent,
 	type KeyDownEvent,
+	type KeyUpEvent,
 	type WillAppearEvent,
 	type WillDisappearEvent
 } from "@elgato/streamdeck";
@@ -12,6 +13,8 @@ import { usageService } from "../engine/service";
 import { compactDuration, compactTokens } from "../render/format";
 import { renderReadout } from "../render/readout";
 import { colour, GEOMETRY, PALETTE, renderRings } from "../render/rings";
+import { longPressThreshold, performLongPress, type LongPressSettings } from "../system/launch";
+import { LongPressTracker } from "./press";
 
 const HOUR = 3_600_000;
 const MINUTE = 60_000;
@@ -28,7 +31,7 @@ export type BurnSettings = {
 	/** Toggled by pressing the key. Off means ring only. */
 	showText?: boolean;
 	refreshSeconds?: number;
-};
+} & LongPressSettings;
 
 const DEFAULTS = {
 	rateWindowMinutes: 60,
@@ -48,6 +51,8 @@ const DEFAULTS = {
  */
 @action({ UUID: "com.kylefsu.claude-usage.burn" })
 export class BurnRate extends SingletonAction<BurnSettings> {
+	readonly #press = new LongPressTracker();
+
 	#unsubscribe: (() => void) | undefined;
 
 	override onWillAppear(ev: WillAppearEvent<BurnSettings>): void | Promise<void> {
@@ -56,7 +61,9 @@ export class BurnRate extends SingletonAction<BurnSettings> {
 		return this.#paint();
 	}
 
-	override onWillDisappear(_ev: WillDisappearEvent<BurnSettings>): void {
+	override onWillDisappear(ev: WillDisappearEvent<BurnSettings>): void {
+		this.#press.cancel(ev.action.id);
+
 		let remaining = 0;
 		for (const _ of this.actions) {
 			remaining += 1;
@@ -72,8 +79,23 @@ export class BurnRate extends SingletonAction<BurnSettings> {
 		return this.#paint();
 	}
 
-	/** Pressing reveals or hides the readout, matching the rings key. */
-	override async onKeyDown(ev: KeyDownEvent<BurnSettings>): Promise<void> {
+	/** Arms the long press; the short action waits for key-up. */
+	override onKeyDown(ev: KeyDownEvent<BurnSettings>): void {
+		const settings = ev.payload.settings ?? {};
+		this.#press.down(ev.action.id, longPressThreshold(settings), () => {
+			if (performLongPress(settings)) {
+				void ev.action.showOk();
+			} else {
+				void ev.action.showAlert();
+			}
+		});
+	}
+
+	/** A short press reveals or hides the readout, matching the rings key. */
+	override async onKeyUp(ev: KeyUpEvent<BurnSettings>): Promise<void> {
+		if (!this.#press.up(ev.action.id)) {
+			return;
+		}
 		const settings = ev.payload.settings ?? {};
 		const showText = !(settings.showText ?? DEFAULTS.showText);
 		await ev.action.setSettings({ ...settings, showText });
