@@ -107,9 +107,9 @@ export class UsageService {
 
 	#startTimer(): void {
 		this.#stopTimer();
+		// Not unref'd: the plugin process should stay alive while keys are on the
+		// canvas, and the Stream Deck app decides when it stops.
 		this.#timer = setInterval(() => void this.refresh(), this.#intervalMs);
-		// Do not hold the process open purely for the poll loop.
-		this.#timer.unref?.();
 	}
 
 	#stopTimer(): void {

@@ -25,7 +25,6 @@ export class LongPressTracker {
 			onLongPress();
 		}, Math.max(150, thresholdMs));
 
-		timer.unref?.();
 		this.#timers.set(id, timer);
 	}
 
