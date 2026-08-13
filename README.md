@@ -2,7 +2,7 @@
 
 Fill gauges on a Stream Deck key for Claude subscription limits: the 5-hour session window and the weekly caps. Reads the numbers from the Claude Code sign-in on the computer the Stream Deck is attached to, via the same endpoint Claude Code's `/usage` screen uses. Read-only: it never writes or refreshes tokens.
 
-**Status: beta (0.9.x).** Works, reviewed, in daily use; the usage endpoint is undocumented and may change without notice.
+**Status: early beta (0.1.x, iterating).** Works and reviewed; expect frequent releases. The usage endpoint is undocumented and may change without notice.
 
 <p>
   <img src="preview/two-gauges.svg" width="144" alt="Two gauges with reset timers" />
