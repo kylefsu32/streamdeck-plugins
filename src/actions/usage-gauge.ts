@@ -18,6 +18,7 @@ import {
 	type GaugeSpec,
 	type TextOptions
 } from "../lib/gauge-svg";
+import { launchClaudeTerminal } from "../lib/launch-claude";
 import { METRIC_KEYS, METRIC_LABELS, usageClient, type MetricKey, type UsageSnapshot } from "../lib/usage-client";
 
 /** Re-render cadence; countdown text changes at minute granularity. */
@@ -130,6 +131,8 @@ export class UsageGauge extends SingletonAction<GaugeSettings> {
 	private timer: NodeJS.Timeout | undefined;
 	private lastFetchAt = 0;
 	private pressedAt = new Map<string, number>();
+	private recoveryTimers: NodeJS.Timeout[] = [];
+	private lastLaunchAt = 0;
 
 	override async onWillAppear(ev: WillAppearEvent<GaugeSettings>): Promise<void> {
 		if (!ev.action.isKey()) return;
@@ -177,6 +180,10 @@ export class UsageGauge extends SingletonAction<GaugeSettings> {
 		if (this.actions.next().done) {
 			clearInterval(this.timer);
 			this.timer = undefined;
+			// Recovery timers deliberately survive disappear: launching Terminal
+			// can trigger an app-specific profile switch that hides the keys, and
+			// the polls must keep running so the keys return healed. They are
+			// one-shot and bounded, so nothing leaks.
 		}
 	}
 
@@ -198,6 +205,55 @@ export class UsageGauge extends SingletonAction<GaugeSettings> {
 
 		const settings = ev.payload.settings;
 		const resolved = resolve(settings);
+
+		// In a sign-in state, a short press opens a terminal running claude:
+		// fixing the credentials beats cycling views that all show the same
+		// error. Hold still forces a refresh for users who fixed it elsewhere.
+		const lastError = usageClient.last?.error?.kind;
+		if (!longPress && (lastError === "expired" || lastError === "no-credentials")) {
+			if (Date.now() - this.lastLaunchAt < 5_000) {
+				// A terminal from the recent successful launch is already open.
+				await ev.action.showOk();
+				return;
+			}
+
+			// The deciding snapshot can be a full poll interval old and the user
+			// may have signed in elsewhere since. Re-check before opening a
+			// terminal at them; the expired determination is local, so this is
+			// cheap and reliable.
+			let snapshot = usageClient.last;
+			if (!snapshot || Date.now() - snapshot.at > 30_000) {
+				snapshot = await usageClient.fetch(true);
+				this.lastFetchAt = snapshot.at;
+				await this.paintAll(snapshot);
+			}
+			const kind = snapshot.error?.kind;
+			if (kind !== "expired" && kind !== "no-credentials") {
+				// Healed on this very press, or a different problem (e.g. offline)
+				// where a terminal would not help.
+				await (snapshot.error ? ev.action.showAlert() : ev.action.showOk());
+				return;
+			}
+
+			// Stamp before the await so a rapid double press cannot open two
+			// terminals; roll back on failure so a retry press is not swallowed.
+			this.lastLaunchAt = Date.now();
+			try {
+				await launchClaudeTerminal();
+			} catch (e) {
+				this.lastLaunchAt = 0;
+				streamDeck.logger.error("Failed to open a terminal running claude", e);
+				await ev.action.showAlert();
+				return;
+			}
+			try {
+				await ev.action.showOk();
+				this.scheduleRecoveryPolls();
+			} catch (e) {
+				streamDeck.logger.error("Post-launch feedback failed", e);
+			}
+			return;
+		}
 
 		// Short press cycles views when there is more than one; hold to force a
 		// refresh. A single-view key keeps the old refresh-on-press behavior.
@@ -226,6 +282,26 @@ export class UsageGauge extends SingletonAction<GaugeSettings> {
 			streamDeck.logger.error("Manual refresh failed", e);
 			await ev.action.showAlert();
 		}
+	}
+
+	/**
+	 * After launching claude, poll a few times over the next two minutes so the
+	 * key heals itself once the user signs in, instead of waiting a full poll
+	 * interval. Forced fetches still respect the client's 10s manual floor.
+	 */
+	private scheduleRecoveryPolls(): void {
+		for (const t of this.recoveryTimers) clearTimeout(t);
+		this.recoveryTimers = [20_000, 50_000, 110_000].map((delay) =>
+			setTimeout(async () => {
+				try {
+					const snapshot = await usageClient.fetch(true);
+					this.lastFetchAt = snapshot.at;
+					await this.paintAll(snapshot);
+				} catch (e) {
+					streamDeck.logger.error("Recovery poll failed", e);
+				}
+			}, delay)
+		);
 	}
 
 	/** Once a minute: repaint countdowns, and re-fetch when the shortest configured interval is due. */

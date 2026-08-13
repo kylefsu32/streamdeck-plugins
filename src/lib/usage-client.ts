@@ -196,9 +196,9 @@ class UsageClient {
 		};
 
 		const creds = await loadCredentials();
-		if (!creds) return fail("no-credentials", "No Claude login");
+		if (!creds) return fail("no-credentials", "Press: sign in");
 		if (creds.expiresAt !== null && creds.expiresAt <= at) {
-			return fail("expired", "Open Claude Code");
+			return fail("expired", "Press: open Claude");
 		}
 
 		let res: Response;
@@ -217,7 +217,7 @@ class UsageClient {
 			return fail("network", "Offline");
 		}
 
-		if (res.status === 401 || res.status === 403) return fail("expired", "Open Claude Code");
+		if (res.status === 401 || res.status === 403) return fail("expired", "Press: open Claude");
 		if (!res.ok) return fail("http", `HTTP ${res.status}`);
 
 		let json: unknown;

@@ -65,7 +65,7 @@ const states = [
 		name: "error-expired",
 		title: "Error: token expired",
 		svg: renderKeySvg(
-			{ gauges: [{ ...g5, pct: 47, resetText: null }, { ...gWeek, pct: 22, resetText: null }], message: "Open Claude Code" },
+			{ gauges: [{ ...g5, pct: 47, resetText: null }, { ...gWeek, pct: 22, resetText: null }], message: "Press: open Claude" },
 			allText
 		)
 	},
@@ -78,7 +78,7 @@ const states = [
 					{ ...g5, pct: null, resetText: null },
 					{ ...gWeek, pct: null, resetText: null }
 				],
-				message: "No Claude login"
+				message: "Press: sign in"
 			},
 			allText
 		)

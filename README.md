@@ -40,8 +40,8 @@ Press the key to switch to the next enabled view (remembered across restarts). H
 
 - Fill = percent of the window used, colored green, then amber at 70%, red at 90%.
 - `--` = that metric does not exist on this plan (e.g. no separate Opus cap on Pro).
-- **Open Claude Code** = the stored token expired; launch Claude Code once and the key recovers on the next poll. The plugin deliberately never refreshes tokens itself, because Anthropic rotates refresh tokens on use and a plugin-side refresh would sign Claude Code out.
-- **No Claude login** = no credentials found on this machine.
+- **Press: open Claude** = the stored token expired. Press the key: a terminal opens running `claude`, and the key recovers on its own within a couple of minutes once the token refreshes. The plugin deliberately never refreshes tokens itself, because Anthropic rotates refresh tokens on use and a plugin-side refresh would sign Claude Code out.
+- **Press: sign in** = no credentials found on this machine. Press the key to open a terminal running `claude` and log in.
 - **Offline** / **HTTP nnn** = network or API trouble; the last known numbers stay on screen.
 
 ## Development
