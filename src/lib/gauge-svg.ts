@@ -255,13 +255,19 @@ function arcSweep(cx: number, cy: number, r: number, stroke: number, raw: number
 }
 
 /** Single large arc gauge. */
-function arc(g: GaugeSpec, text: TextOptions, showResetLine: boolean, colors: ColorOptions, pal: Palette): string {
+function arc(g: GaugeSpec, text: TextOptions, showResetLine: boolean, colors: ColorOptions, pal: Palette, hasMessage: boolean): string {
 	// The hardware bezel/diffuser eats roughly the outer 12px of the 144px
 	// canvas, so the arc and bottom text stay inside that inset.
 	const cx = 72;
-	const cy = 60;
 	const r = 40;
 	const stroke = 11;
+	// Vertical centering: the ring sits high only to make room for the
+	// under-arc label and the bottom reset/status line. As those disappear it
+	// slides down, landing dead-center when it is the only thing drawn.
+	const underLabel = text.showPct && text.showLabel;
+	const bottomLine = showResetLine || hasMessage;
+	const cy = underLabel ? (bottomLine ? 60 : 66) : bottomLine ? 68 : 72;
+	const labelBase = bottomLine ? 116 : 122;
 	const { raw, shown } = rounded(g.pct);
 
 	let s = "";
@@ -276,8 +282,8 @@ function arc(g: GaugeSpec, text: TextOptions, showResetLine: boolean, colors: Co
 		// With the percentage hidden, the short label takes the ring center.
 		s += `<text x="${cx}" y="${cy + 5}" text-anchor="middle" font-family=${JSON.stringify(FONT)} font-size="14" font-weight="600" fill="${pal.muted}">${esc(g.labelShort)}</text>`;
 	}
-	if (text.showPct && text.showLabel) {
-		s += `<text x="${cx}" y="116" text-anchor="middle" font-family=${JSON.stringify(FONT)} font-size="13" font-weight="600" fill="${pal.muted}">${esc(g.labelLong)}</text>`;
+	if (underLabel) {
+		s += `<text x="${cx}" y="${labelBase}" text-anchor="middle" font-family=${JSON.stringify(FONT)} font-size="13" font-weight="600" fill="${pal.muted}">${esc(g.labelLong)}</text>`;
 	}
 	if (showResetLine && g.resetText) {
 		s += `<text x="${cx}" y="129" text-anchor="middle" font-family=${JSON.stringify(FONT)} font-size="11" fill="${pal.dim}">${esc(g.resetText)}</text>`;
@@ -297,7 +303,7 @@ export function renderKeySvg(render: KeyRender, text: TextOptions, colors: Color
 	const resetVisible = text.showReset && !render.message;
 	let body = "";
 	if (render.gauges.length === 1) {
-		body = arc(render.gauges[0], text, resetVisible, colors, pal);
+		body = arc(render.gauges[0], text, resetVisible, colors, pal, Boolean(render.message));
 	} else {
 		const labelRow = text.showLabel || text.showPct;
 		const tops = barTops(labelRow, resetVisible, Boolean(render.message));

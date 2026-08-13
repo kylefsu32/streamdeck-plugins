@@ -1,6 +1,6 @@
 {
 	"Name": "Claude Usage Gauges",
-	"Version": "0.2.0.0",
+	"Version": "0.2.1.0",
 	"Author": "kylefsu32",
 	"Description": "Fill gauges for Claude usage limits (5-hour session and weekly), read from the local Claude Code sign-in.",
 	"Actions": [
