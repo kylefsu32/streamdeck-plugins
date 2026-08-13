@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+	<head lang="en">
+		<title>Claude Usage Gauge Settings</title>
+		<meta charset="utf-8" />
+		<script src="libs/sdpi-components.js"></script>
+	</head>
+
+	<body>
+		<sdpi-item label="Gauges">
+			<sdpi-select setting="layout">
+				<option value="1">1 gauge</option>
+				<option value="2">2 gauges</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Gauge 1">
+			<sdpi-select setting="metric1">
+				<option value="five_hour">Session (5-hour)</option>
+				<option value="seven_day">Week (all models)</option>
+				<option value="seven_day_opus">Week (Opus)</option>
+				<option value="seven_day_sonnet">Week (Sonnet)</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Gauge 2" id="gauge2-item">
+			<sdpi-select setting="metric2">
+				<option value="five_hour">Session (5-hour)</option>
+				<option value="seven_day">Week (all models)</option>
+				<option value="seven_day_opus">Week (Opus)</option>
+				<option value="seven_day_sonnet">Week (Sonnet)</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Refresh every">
+			<sdpi-select setting="pollMinutes">
+				<option value="1">1 minute</option>
+				<option value="2">2 minutes</option>
+				<option value="5">5 minutes</option>
+				<option value="10">10 minutes</option>
+				<option value="15">15 minutes</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Reset timer">
+			<sdpi-checkbox setting="showReset" label="Show time until reset"></sdpi-checkbox>
+		</sdpi-item>
+
+		<sdpi-item label="Notes">
+			<sdpi-textarea disabled rows="4" placeholder="Reads usage from this computer's Claude Code sign-in. Press the key to refresh immediately. Opus/Sonnet weekly caps only exist on some plans; unavailable metrics show --."></sdpi-textarea>
+		</sdpi-item>
+
+		<script>
+			// Hide the Gauge 2 row when a single gauge is selected. Settings load
+			// async, so poll the component's value instead of listening once.
+			setInterval(() => {
+				const layout = document.querySelector('sdpi-select[setting="layout"]');
+				const item = document.getElementById("gauge2-item");
+				if (layout && item) item.style.display = layout.value === "1" ? "none" : "";
+			}, 400);
+		</script>
+	</body>
+</html>

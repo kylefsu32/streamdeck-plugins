@@ -1,0 +1,46 @@
+{
+	"Name": "Claude Usage Gauges",
+	"Version": "0.9.0.0",
+	"Author": "kylefsu32",
+	"Description": "Fill gauges for Claude usage limits (5-hour session and weekly), read from the local Claude Code sign-in.",
+	"Actions": [
+		{
+			"Name": "Usage Gauge",
+			"UUID": "com.kylefsu32.claude-gauges.gauge",
+			"Icon": "imgs/actions/gauge/icon",
+			"Tooltip": "Shows Claude 5-hour and weekly usage as fill gauges.",
+			"PropertyInspectorPath": "ui/gauge.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/gauge/key",
+					"ShowTitle": false
+				}
+			]
+		}
+	],
+	"Category": "Claude Usage Gauges",
+	"CategoryIcon": "imgs/plugin/category",
+	"CodePath": "bin/plugin.js",
+	"Icon": "imgs/plugin/icon",
+	"SDKVersion": 2,
+	"Software": {
+		"MinimumVersion": "6.5"
+	},
+	"OS": [
+		{
+			"Platform": "mac",
+			"MinimumVersion": "12"
+		},
+		{
+			"Platform": "windows",
+			"MinimumVersion": "10"
+		}
+	],
+	"Nodejs": {
+		"Version": "20"
+	},
+	"UUID": "com.kylefsu32.claude-gauges"
+}
