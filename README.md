@@ -27,12 +27,14 @@ Requirements on the computer running the Stream Deck app:
 
 | Setting | Meaning |
 |---|---|
-| Gauges | 1 (big arc) or 2 (stacked bars) |
+| Views in cycle | Any of: both gauges as bars, gauge 1 alone as an arc, gauge 2 alone as an arc |
 | Gauge 1 / Gauge 2 | Session (5-hour), Week (all models), Week (Opus), Week (Sonnet) |
+| Show text | Toggle the percentage, the gauge label, and the time-until-reset independently; all off gives pure gauges |
+| Fill style | Threshold colors (green/amber/red), a single custom color, or a custom gradient |
+| Colors | Fill color pickers plus a background color; text flips dark automatically on light backgrounds |
 | Refresh every | 1 to 15 minutes (a shared 55s floor protects the API either way) |
-| Reset timer | Show time until each window resets |
 
-Press the key to refresh immediately (rate-limited to once per 10s).
+Press the key to switch to the next enabled view (remembered across restarts). Hold the key about a second to refresh immediately (rate-limited to once per 10s). A key with a single enabled view refreshes on any press.
 
 ## What the key shows
 

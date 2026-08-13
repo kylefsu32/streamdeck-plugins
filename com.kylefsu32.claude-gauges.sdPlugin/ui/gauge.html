@@ -7,11 +7,14 @@
 	</head>
 
 	<body>
-		<sdpi-item label="Gauges">
-			<sdpi-select setting="layout">
-				<option value="1">1 gauge</option>
-				<option value="2">2 gauges</option>
-			</sdpi-select>
+		<sdpi-item label="Views in cycle">
+			<sdpi-checkbox setting="viewBars" label="Both gauges (bars)"></sdpi-checkbox>
+		</sdpi-item>
+		<sdpi-item label="">
+			<sdpi-checkbox setting="viewArc1" label="Gauge 1 alone (arc)"></sdpi-checkbox>
+		</sdpi-item>
+		<sdpi-item label="">
+			<sdpi-checkbox setting="viewArc2" label="Gauge 2 alone (arc)"></sdpi-checkbox>
 		</sdpi-item>
 
 		<sdpi-item label="Gauge 1">
@@ -32,6 +35,33 @@
 			</sdpi-select>
 		</sdpi-item>
 
+		<sdpi-item label="Show text">
+			<sdpi-checkbox setting="showPct" label="Percentage"></sdpi-checkbox>
+		</sdpi-item>
+		<sdpi-item label="">
+			<sdpi-checkbox setting="showLabel" label="Gauge label (session type)"></sdpi-checkbox>
+		</sdpi-item>
+		<sdpi-item label="">
+			<sdpi-checkbox setting="showReset" label="Time until reset"></sdpi-checkbox>
+		</sdpi-item>
+
+		<sdpi-item label="Fill style">
+			<sdpi-select setting="colorMode">
+				<option value="threshold">Threshold (green / amber / red)</option>
+				<option value="custom">Single color</option>
+				<option value="gradient">Gradient</option>
+			</sdpi-select>
+		</sdpi-item>
+		<sdpi-item label="Color" id="colorA-item" style="display:none">
+			<sdpi-color setting="colorA"></sdpi-color>
+		</sdpi-item>
+		<sdpi-item label="Gradient end" id="colorB-item" style="display:none">
+			<sdpi-color setting="colorB"></sdpi-color>
+		</sdpi-item>
+		<sdpi-item label="Background">
+			<sdpi-color setting="colorBg"></sdpi-color>
+		</sdpi-item>
+
 		<sdpi-item label="Refresh every">
 			<sdpi-select setting="pollMinutes">
 				<option value="1">1 minute</option>
@@ -42,22 +72,43 @@
 			</sdpi-select>
 		</sdpi-item>
 
-		<sdpi-item label="Reset timer">
-			<sdpi-checkbox setting="showReset" label="Show time until reset"></sdpi-checkbox>
-		</sdpi-item>
-
 		<sdpi-item label="Notes">
-			<sdpi-textarea disabled rows="4" placeholder="Reads usage from this computer's Claude Code sign-in. Press the key to refresh immediately. Opus/Sonnet weekly caps only exist on some plans; unavailable metrics show --."></sdpi-textarea>
+			<sdpi-textarea disabled rows="5" placeholder="Press the key to switch between the checked views. Hold the key (about a second) to refresh now. With every text option off, the key shows pure gauges. Reads usage from this computer's Claude Code sign-in; unavailable metrics show --."></sdpi-textarea>
 		</sdpi-item>
 
 		<script>
-			// Hide the Gauge 2 row when a single gauge is selected. Settings load
-			// async, so poll the component's value instead of listening once.
-			setInterval(() => {
-				const layout = document.querySelector('sdpi-select[setting="layout"]');
-				const item = document.getElementById("gauge2-item");
-				if (layout && item) item.style.display = layout.value === "1" ? "none" : "";
-			}, 400);
+			// Hide rows that don't apply to the current selections. Checkboxes
+			// treat undefined as checked (matching the plugin's defaults), so
+			// they start visible; the color rows start hidden in markup and stay
+			// hidden until the persisted colorMode actually arrives.
+			const sync = () => {
+				const bars = document.querySelector('sdpi-checkbox[setting="viewBars"]');
+				const arc1 = document.querySelector('sdpi-checkbox[setting="viewArc1"]');
+				const arc2 = document.querySelector('sdpi-checkbox[setting="viewArc2"]');
+				const gauge2 = document.getElementById("gauge2-item");
+				if (bars && arc1 && arc2 && gauge2) {
+					// With every view unchecked the plugin falls back to the bars
+					// view, which renders metric2, so keep the Gauge 2 row visible.
+					const allOff = bars.value === false && arc1.value === false && arc2.value === false;
+					const used = allOff || bars.value !== false || arc2.value !== false;
+					gauge2.style.display = used ? "" : "none";
+				}
+				const mode = document.querySelector('sdpi-select[setting="colorMode"]');
+				const colorA = document.getElementById("colorA-item");
+				const colorB = document.getElementById("colorB-item");
+				if (mode && colorA && colorB && typeof mode.value === "string") {
+					colorA.style.display = mode.value === "threshold" ? "none" : "";
+					colorB.style.display = mode.value === "gradient" ? "" : "none";
+				}
+			};
+			// valuechange fires as persisted settings arrive; the poll is a backstop.
+			document.addEventListener("DOMContentLoaded", () => {
+				for (const el of document.querySelectorAll("sdpi-checkbox[setting], sdpi-select[setting]")) {
+					el.addEventListener("valuechange", sync);
+				}
+				sync();
+			});
+			setInterval(sync, 400);
 		</script>
 	</body>
 </html>

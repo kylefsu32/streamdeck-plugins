@@ -1,6 +1,5 @@
 // Renders sample key faces using the real gauge renderer into preview/.
-// Run `npx tsc src/lib/gauge-svg.ts --outDir .preview --module es2022 --target es2022` first
-// (npm run preview does both).
+// Run via `npm run preview` (compiles src/lib/gauge-svg.ts to .preview/ first).
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,55 +7,67 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const { renderKeySvg } = await import(join(root, ".preview", "gauge-svg.js"));
 
+const g5 = { labelShort: "5-HR", labelLong: "SESSION (5H)", pct: 62, resetText: "2h 14m" };
+const gWeek = { labelShort: "WEEK", labelLong: "WEEK (ALL)", pct: 38, resetText: "4d 6h" };
+const g5hot = { labelShort: "5-HR", labelLong: "SESSION (5H)", pct: 93, resetText: "41m" };
+const gOpus = { labelShort: "OPUS", labelLong: "WEEK (OPUS)", pct: 78, resetText: "2d 1h" };
+const allText = { showPct: true, showLabel: true, showReset: true };
+const threshold = { bg: "#16161d", mode: "threshold", colorA: "#43b581", colorB: "#e5484d" };
+const gradientBlue = { bg: "#16161d", mode: "gradient", colorA: "#38bdf8", colorB: "#8957e5" };
+const singleCoral = { bg: "#16161d", mode: "custom", colorA: "#d97757", colorB: "#e5484d" };
+const lightBg = { bg: "#e8e8ee", mode: "threshold", colorA: "#43b581", colorB: "#e5484d" };
+
 const states = [
+	{ name: "bars-full", title: "Bars view, all text", svg: renderKeySvg({ gauges: [g5, gWeek] }, allText) },
+	{ name: "bars-hot", title: "Bars view, near the caps", svg: renderKeySvg({ gauges: [g5hot, gOpus] }, allText) },
 	{
-		name: "two-gauges",
-		title: "2 gauges, reset timers on",
+		name: "bars-pct-only",
+		title: "Bars, percentage only",
+		svg: renderKeySvg({ gauges: [g5, gWeek] }, { showPct: true, showLabel: false, showReset: false })
+	},
+	{
+		name: "bars-no-text",
+		title: "Bars, no text (pure gauges)",
+		svg: renderKeySvg({ gauges: [g5, gWeek] }, { showPct: false, showLabel: false, showReset: false })
+	},
+	{ name: "arc-full", title: "Arc view, threshold sweep", svg: renderKeySvg({ gauges: [g5] }, allText, threshold) },
+	{
+		name: "arc-gradient",
+		title: "Arc, custom gradient",
+		svg: renderKeySvg({ gauges: [g5] }, allText, gradientBlue)
+	},
+	{
+		name: "arc-coral",
+		title: "Arc, single custom color",
+		svg: renderKeySvg({ gauges: [gOpus] }, allText, singleCoral)
+	},
+	{
+		name: "bars-gradient",
+		title: "Bars, custom gradient",
+		svg: renderKeySvg({ gauges: [g5, gWeek] }, allText, gradientBlue)
+	},
+	{
+		name: "bars-light",
+		title: "Bars, light background",
+		svg: renderKeySvg({ gauges: [g5, gWeek] }, allText, lightBg)
+	},
+	{
+		name: "arc-label-center",
+		title: "Arc, label instead of percentage",
+		svg: renderKeySvg({ gauges: [gWeek] }, { showPct: false, showLabel: true, showReset: true })
+	},
+	{
+		name: "arc-no-text",
+		title: "Arc, no text",
+		svg: renderKeySvg({ gauges: [g5hot] }, { showPct: false, showLabel: false, showReset: false })
+	},
+	{
+		name: "error-expired",
+		title: "Error: token expired",
 		svg: renderKeySvg(
-			{
-				gauges: [
-					{ label: "5-HR", pct: 62, resetText: "2h 14m" },
-					{ label: "WEEK", pct: 38, resetText: "4d 6h" }
-				]
-			},
-			true
+			{ gauges: [{ ...g5, pct: 47, resetText: null }, { ...gWeek, pct: 22, resetText: null }], message: "Open Claude Code" },
+			allText
 		)
-	},
-	{
-		name: "two-gauges-hot",
-		title: "2 gauges, near the caps",
-		svg: renderKeySvg(
-			{
-				gauges: [
-					{ label: "5-HR", pct: 93, resetText: "41m" },
-					{ label: "OPUS", pct: 78, resetText: "2d 1h" }
-				]
-			},
-			true
-		)
-	},
-	{
-		name: "two-gauges-plain",
-		title: "2 gauges, reset timers off",
-		svg: renderKeySvg(
-			{
-				gauges: [
-					{ label: "5-HR", pct: 62, resetText: null },
-					{ label: "WEEK", pct: 38, resetText: null }
-				]
-			},
-			false
-		)
-	},
-	{
-		name: "one-gauge",
-		title: "1 gauge (arc)",
-		svg: renderKeySvg({ gauges: [{ label: "SESSION (5H)", pct: 62, resetText: "2h 14m" }] }, true)
-	},
-	{
-		name: "one-gauge-hot",
-		title: "1 gauge, near the cap",
-		svg: renderKeySvg({ gauges: [{ label: "WEEK (ALL)", pct: 91, resetText: "3d 12h" }] }, true)
 	},
 	{
 		name: "error-no-login",
@@ -64,26 +75,12 @@ const states = [
 		svg: renderKeySvg(
 			{
 				gauges: [
-					{ label: "5-HR", pct: null, resetText: null },
-					{ label: "WEEK", pct: null, resetText: null }
+					{ ...g5, pct: null, resetText: null },
+					{ ...gWeek, pct: null, resetText: null }
 				],
 				message: "No Claude login"
 			},
-			true
-		)
-	},
-	{
-		name: "error-expired",
-		title: "Error: token expired (open Claude Code)",
-		svg: renderKeySvg(
-			{
-				gauges: [
-					{ label: "5-HR", pct: 47, resetText: null },
-					{ label: "WEEK", pct: 22, resetText: null }
-				],
-				message: "Open Claude Code"
-			},
-			true
+			allText
 		)
 	}
 ];
