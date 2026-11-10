@@ -1,0 +1,306 @@
+{
+	"$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+	"Name": "Claude Harness",
+	"Version": "0.1.0.0",
+	"Author": "kylefsu32",
+	"URL": "https://github.com/kylefsu32/streamdeck-plugins",
+	"Actions": [
+		{
+			"Name": "Agent",
+			"UUID": "com.kylefsu.claude-harness.agent",
+			"Icon": "imgs/actions/agent/icon",
+			"Tooltip": "One Claude Code session: working, needs you, done or idle, with what it is doing right now. Press to mark a finished turn read.",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/agent/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/agent.html"
+		},
+		{
+			"Name": "Overview",
+			"UUID": "com.kylefsu.claude-harness.overview",
+			"Icon": "imgs/actions/overview/icon",
+			"Tooltip": "How many sessions need you, are working, or finished unread. Press to mark every finished turn read.",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/overview/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/settings.html"
+		},
+		{
+			"Name": "Inbox",
+			"UUID": "com.kylefsu.claude-harness.inbox",
+			"Icon": "imgs/actions/inbox/icon",
+			"Tooltip": "The newest recap of a finished turn. Press to mark it read and show the next.",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/inbox/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/settings.html"
+		},
+		{
+			"Name": "Needs You",
+			"UUID": "com.kylefsu.claude-harness.question",
+			"Icon": "imgs/actions/question/icon",
+			"Tooltip": "The permission prompt or question that has waited longest. Press to step to the next one.",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/question/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/settings.html"
+		},
+		{
+			"Name": "Allow",
+			"UUID": "com.kylefsu.claude-harness.allow",
+			"Icon": "imgs/actions/allow/icon",
+			"Tooltip": "Allow the prompt shown on the Needs You key (when it is held for the deck).",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/allow/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/settings.html"
+		},
+		{
+			"Name": "Deny",
+			"UUID": "com.kylefsu.claude-harness.deny",
+			"Icon": "imgs/actions/deny/icon",
+			"Tooltip": "Deny the prompt shown on the Needs You key (when it is held for the deck).",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/deny/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/settings.html"
+		},
+		{
+			"Name": "Always Allow",
+			"UUID": "com.kylefsu.claude-harness.always",
+			"Icon": "imgs/actions/always/icon",
+			"Tooltip": "Allow the prompt and save the rule Claude Code suggests (shown on the key). Refuses when no single safe rule is on offer.",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/always/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/always.html"
+		},
+		{
+			"Name": "Option",
+			"UUID": "com.kylefsu.claude-harness.option",
+			"Icon": "imgs/actions/option/icon",
+			"Tooltip": "Option N of Claude's multiple-choice question on the Needs You key. Press to answer.",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/option/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/option.html"
+		},
+		{
+			"Name": "Use Terminal",
+			"UUID": "com.kylefsu.claude-harness.terminal",
+			"Icon": "imgs/actions/terminal/icon",
+			"Tooltip": "Let go of the held prompt or question so Claude Code's own picker shows it now.",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/terminal/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/settings.html"
+		},
+		{
+			"Name": "Usage",
+			"UUID": "com.kylefsu.claude-harness.usage",
+			"Icon": "imgs/actions/usage/icon",
+			"Tooltip": "One Claude limit (session, weekly, Opus, Sonnet) as a bar, a ring or a forecast. Press to refresh.",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/usage/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/usage.html"
+		},
+		{
+			"Name": "Usage Strip",
+			"UUID": "com.kylefsu.claude-harness.usage-strip",
+			"Icon": "imgs/actions/usage-strip/icon",
+			"Tooltip": "A Claude limit on the Stream Deck + touch strip. Turn to switch limits, press to refresh.",
+			"Controllers": [
+				"Encoder"
+			],
+			"Encoder": {
+				"layout": "layouts/usage-strip.json",
+				"TriggerDescription": {
+					"Rotate": "Switch limit",
+					"Push": "Refresh",
+					"Touch": "Refresh"
+				}
+			},
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/usage-strip/key",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/usage-strip.html"
+		}
+	],
+	"Category": "Claude Harness",
+	"CategoryIcon": "imgs/plugin/category",
+	"CodePath": "bin/plugin.js",
+	"Description": "Your Claude Code sessions at a glance, the way a harness device shows them: who is working, who finished, who needs you. Answer permission prompts from the deck. Reads Claude Code hooks locally; nothing leaves the machine.",
+	"Icon": "imgs/plugin/plugin",
+	"SDKVersion": 2,
+	"Software": {
+		"MinimumVersion": "6.5"
+	},
+	"OS": [
+		{
+			"Platform": "mac",
+			"MinimumVersion": "10.15"
+		},
+		{
+			"Platform": "windows",
+			"MinimumVersion": "10"
+		}
+	],
+	"Nodejs": {
+		"Version": "20",
+		"Debug": "enabled"
+	},
+	"Profiles": [
+		{
+			"Name": "Claude Harness",
+			"DeviceType": 0,
+			"Readonly": false
+		},
+		{
+			"Name": "Claude Harness Mini",
+			"DeviceType": 1,
+			"Readonly": false
+		},
+		{
+			"Name": "Claude Harness XL",
+			"DeviceType": 2,
+			"Readonly": false
+		},
+		{
+			"Name": "Claude Harness Plus",
+			"DeviceType": 7,
+			"Readonly": false
+		},
+		{
+			"Name": "Claude Harness Answer",
+			"DeviceType": 0,
+			"Readonly": false,
+			"DontAutoSwitchWhenInstalled": true
+		},
+		{
+			"Name": "Claude Harness Answer Mini",
+			"DeviceType": 1,
+			"Readonly": false,
+			"DontAutoSwitchWhenInstalled": true
+		},
+		{
+			"Name": "Claude Harness Answer XL",
+			"DeviceType": 2,
+			"Readonly": false,
+			"DontAutoSwitchWhenInstalled": true
+		},
+		{
+			"Name": "Claude Harness Answer Plus",
+			"DeviceType": 7,
+			"Readonly": false,
+			"DontAutoSwitchWhenInstalled": true
+		}
+	],
+	"UUID": "com.kylefsu.claude-harness"
+}

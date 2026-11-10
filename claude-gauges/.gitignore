@@ -1,0 +1,8 @@
+node_modules/
+.preview/
+dist/
+com.kylefsu32.claude-gauges.sdPlugin/bin/
+com.kylefsu32.claude-gauges.sdPlugin/logs/
+preview/*.png
+*.log
+.DS_Store

@@ -1,0 +1,34 @@
+{
+	"name": "claude-harness-streamdeck",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Stream Deck plugin that shows your Claude Code sessions the way a harness device would: who is working, who finished, who needs you.",
+	"type": "module",
+	"scripts": {
+		"build": "rollup -c",
+		"watch": "rollup -c -w --watch.onEnd=\"streamdeck restart com.kylefsu.claude-harness\"",
+		"test": "rollup -c && node --test dist/tests.mjs",
+		"preview": "rollup -c && node dist/preview.mjs",
+		"icons": "rollup -c && node tools/make-icons.mjs",
+		"profiles": "python3 profile/build_profiles.py",
+		"hooks:install": "node com.kylefsu.claude-harness.sdPlugin/bin/hook.mjs --install",
+		"hooks:uninstall": "node com.kylefsu.claude-harness.sdPlugin/bin/hook.mjs --uninstall",
+		"package": "rollup -c && python3 profile/build_profiles.py && streamdeck pack com.kylefsu.claude-harness.sdPlugin --output dist --force",
+		"validate": "streamdeck validate com.kylefsu.claude-harness.sdPlugin"
+	},
+	"devDependencies": {
+		"@elgato/cli": "^1.7.0",
+		"@rollup/plugin-commonjs": "^28.0.2",
+		"@rollup/plugin-node-resolve": "^16.0.0",
+		"@rollup/plugin-terser": "^1.0.0",
+		"@rollup/plugin-typescript": "^12.1.2",
+		"@tsconfig/node20": "^20.1.4",
+		"@types/node": "22.13.0",
+		"rollup": "^4.32.1",
+		"tslib": "^2.8.1",
+		"typescript": "^5.7.3"
+	},
+	"dependencies": {
+		"@elgato/streamdeck": "^2.0.1"
+	}
+}
