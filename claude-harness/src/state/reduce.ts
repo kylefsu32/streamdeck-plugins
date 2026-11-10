@@ -1,6 +1,7 @@
 import path from "node:path";
 
-import type { AgentRecord, Question } from "./types";
+import { ruleText, safeUpdate } from "./rules";
+import type { AgentRecord, Choice, Question } from "./types";
 
 /**
  * The fields of a Claude Code hook payload this plugin reads. Every hook gets
@@ -15,6 +16,7 @@ export type HookInput = {
 	tool_name?: string;
 	tool_input?: Record<string, unknown>;
 	tool_use_id?: string;
+	permission_suggestions?: unknown;
 	message?: string;
 	notification_type?: string;
 	last_assistant_message?: string;
@@ -107,6 +109,8 @@ export function reduce(
 			break;
 
 		case "PermissionRequest":
+			// AskUserQuestion was already put up by PreToolUse; keep that one.
+			if (input.tool_name === "AskUserQuestion" && r.question?.kind === "question") break;
 			r.state = "asking";
 			r.question = permissionQuestion(input, now);
 			break;
@@ -170,7 +174,9 @@ function startTurnIfNeeded(r: AgentRecord, now: number): void {
 
 function permissionQuestion(input: HookInput, now: number): Question {
 	const tool = input.tool_name ?? "";
+	const always = safeUpdate(input.permission_suggestions, tool);
 	return {
+		alwaysRule: always ? ruleText(always) : undefined,
 		id: `${safeId(input.session_id)}-${input.tool_use_id ? safeId(input.tool_use_id) : now}`,
 		kind: "permission",
 		tool: toolName(tool),
@@ -181,16 +187,35 @@ function permissionQuestion(input: HookInput, now: number): Question {
 }
 
 function askUserQuestion(input: HookInput, now: number): Question {
-	const questions = (input.tool_input?.questions as Array<{ question?: string }> | undefined) ?? [];
-	const text = questions[0]?.question ?? "Claude has a question";
+	const choices = parseChoices(input.tool_input);
+	const text = choices[0]?.question ?? "Claude has a question";
 	return {
 		id: `${safeId(input.session_id)}-${input.tool_use_id ? safeId(input.tool_use_id) : now}`,
 		kind: "question",
-		tool: "Question",
+		tool: choices[0]?.header || "Question",
 		detail: firstLine(text, 140),
 		at: now,
-		answerable: false
+		answerable: false,
+		choices
 	};
+}
+
+/** AskUserQuestion's input, defensively: 1–4 questions of 2–4 options each. */
+export function parseChoices(toolInput: Record<string, unknown> | undefined): Choice[] {
+	const raw = Array.isArray(toolInput?.questions) ? (toolInput!.questions as unknown[]) : [];
+	return raw
+		.map((q) => q as { question?: unknown; header?: unknown; options?: unknown; multiSelect?: unknown })
+		.filter((q) => typeof q?.question === "string")
+		.map((q) => ({
+			question: q.question as string,
+			header: typeof q.header === "string" ? q.header : "",
+			multiSelect: q.multiSelect === true,
+			options: (Array.isArray(q.options) ? q.options : [])
+				.map((o) => o as { label?: unknown; description?: unknown })
+				.filter((o) => typeof o?.label === "string")
+				.map((o) => ({ label: o.label as string, description: typeof o.description === "string" ? o.description : "" }))
+		}))
+		.filter((q) => q.options.length > 0);
 }
 
 function safeId(s: string | undefined): string {

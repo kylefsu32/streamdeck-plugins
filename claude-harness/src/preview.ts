@@ -4,7 +4,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 
-import { agentKey, answerKey, emptyAgentKey, inboxKey, overviewKey, questionKey } from "./render/keys";
+import { agentKey, alwaysKey, answerKey, emptyAgentKey, inboxKey, optionKey, overviewKey, questionKey, terminalKey } from "./render/keys";
 import type { Agent } from "./state/store";
 
 const now = Date.now();
@@ -43,6 +43,26 @@ const asking = agent({
 		holdUntil: now + 11_000
 	}
 });
+const choices = [
+	{
+		question: "Retries time out under load. Which fix should I make?",
+		header: "Approach",
+		multiSelect: false,
+		options: [
+			{ label: "Add jitter", description: "" },
+			{ label: "Token bucket", description: "" },
+			{ label: "Leave it for now", description: "" },
+			{ label: "Rewrite the client with backoff", description: "" }
+		]
+	},
+	{ question: "Ship it today?", header: "Release", multiSelect: false, options: [{ label: "Yes", description: "" }, { label: "No", description: "" }] }
+];
+const choosing = agent({
+	id: "c",
+	project: "api",
+	state: "asking",
+	question: { id: "q2", kind: "question", tool: "Approach", detail: choices[0]!.question, at: now, answerable: true, holdUntil: now + 90_000, choices }
+});
 const done = agent({
 	id: "d",
 	project: "openharness",
@@ -80,7 +100,17 @@ const tiles: Array<[string, string]> = [
 	["Allow · live", answerKey("allow", true)],
 	["Deny · live", answerKey("deny", true)],
 	["Allow · idle", answerKey("allow", false)],
-	["Allow · sent", answerKey("allow", false, "sent")]
+	["Allow · sent", answerKey("allow", false, "sent")],
+	["Always · rule", alwaysKey("Bash(gh pr *)", true)],
+	["Always · long rule", alwaysKey("WebFetch(domain:docs.example.com)", true)],
+	["Always · just denied", alwaysKey("Bash(gh pr *)", true, "just denied")],
+	["Always · no rule", alwaysKey(undefined, true, "n/a")],
+	["Needs you · question 1/2", questionKey({ agent: choosing, question: choosing.question! }, 0, 1, now, 0)],
+	["Option 1", optionKey(1, "Add jitter", true)],
+	["Option 3", optionKey(3, "Leave it for now", true)],
+	["Option 4 · long", optionKey(4, "Rewrite the client with backoff", true)],
+	["Option · none", optionKey(4, undefined, false)],
+	["Use terminal", terminalKey(true)]
 ];
 
 mkdirSync("dist/preview", { recursive: true });

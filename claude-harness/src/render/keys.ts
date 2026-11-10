@@ -1,6 +1,6 @@
 import type { Agent } from "../state/store";
 import type { Question } from "../state/types";
-import { arc, circle, COLOURS, frame, lines, ring, SIZE, text, truncate, wrap } from "./svg";
+import { arc, circle, COLOURS, frame, lines, ring, SIZE, text, textWidth, truncate, wrap } from "./svg";
 
 /**
  * The key faces. Each is a pure function of data and a clock, so the preview
@@ -186,7 +186,8 @@ export function questionKey(
 	index: number,
 	total: number,
 	now: number,
-	tick: number
+	tick: number,
+	step = 0
 ): string {
 	if (!entry) {
 		return frame(COLOURS.idle, text(CX, 32, "Needs you", { size: 16, weight: 700, fill: COLOURS.dim }) + mark("idle", 0) + text(CX, 120, "All clear", { size: 12.5, fill: COLOURS.dim }));
@@ -195,9 +196,17 @@ export function questionKey(
 	const head =
 		text(12, 30, truncate(agent.project, total > 1 ? 92 : 120, 16, true), { size: 16, weight: 700, anchor: "start" }) +
 		(total > 1 ? text(132, 30, `${index + 1}/${total}`, { size: 12, anchor: "end", fill: COLOURS.dim }) : "");
+	const choice = question.choices?.[step];
+	const steps = question.choices?.length ?? 0;
 	const title =
-		question.kind === "permission" ? `Allow ${question.tool}?` : question.kind === "question" ? "Question" : "Needs you";
-	const detail = wrap(question.detail, TEXT_W, 12.5, 3);
+		question.kind === "permission"
+			? `Allow ${question.tool}?`
+			: choice
+				? `${choice.header || "Question"}${steps > 1 ? ` ${step + 1}/${steps}` : ""}`
+				: question.kind === "question"
+					? "Question"
+					: "Needs you";
+	const detail = wrap(choice?.question ?? question.detail, TEXT_W, 12.5, 3);
 	const remaining = question.answerable && question.holdUntil ? Math.ceil((question.holdUntil - now) / 1000) : 0;
 	const footer =
 		remaining > 0
@@ -224,5 +233,70 @@ export function answerKey(kind: "allow" | "deny", live: boolean, flash: "" | "se
 	return frame(
 		live ? colour : COLOURS.track,
 		circle(73, 62, 34, fill) + glyph + text(CX, 124, label, { size: 18, weight: 700, fill: live || flash ? COLOURS.ink : COLOURS.faint })
+	);
+}
+
+/** Always allow: shows the rule it would save, whole, or why it won't. */
+export function alwaysKey(rule: string | undefined, live: boolean, why: "" | "n/a" | "just denied" | "sent" | "late" = ""): string {
+	const colour = COLOURS.done;
+	const lit = live && !!rule && !why;
+	const ink = lit ? COLOURS.ink : COLOURS.faint;
+	// Two rules under the bar tell it apart from Allow without relying on colour.
+	const cap = `<rect y="13" width="${SIZE}" height="3" fill="${lit ? colour : COLOURS.track}"/>`;
+	const tick = (x: number) =>
+		`<path d="M ${x - 13} 52 L ${x - 4} 61 L ${x + 13} 42" fill="none" stroke="${lit ? colour : COLOURS.faint}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>`;
+	const label = why === "sent" ? "Sent" : why === "late" ? "Too late" : "Always";
+	let body: string;
+	if (why === "just denied") body = lines(CX, 118, ["just denied"], 16, { size: 13, fill: COLOURS.error, weight: 700 });
+	else if (!rule || why === "n/a") body = lines(CX, 118, [live ? "no safe rule" : "—"], 16, { size: 13, fill: COLOURS.faint });
+	else {
+		const rows = ruleLines(rule);
+		body = lines(CX, rows.length > 1 ? 112 : 118, rows, 15, { size: 12.5, fill: ink, weight: 700 });
+	}
+	return frame(lit ? colour : COLOURS.track, cap + tick(58) + tick(84) + text(CX, 90, label, { size: 17, weight: 700, fill: lit || why === "sent" ? COLOURS.ink : COLOURS.faint }) + body);
+}
+
+/** Breaks `WebFetch(domain:docs.example.com)` at its seams rather than mid-word, up to three lines. */
+export function ruleLines(rule: string): string[] {
+	const parts = rule.replace(/\(/, "(\u0000").replace(/:/, ":\u0000").replace(/ /g, " \u0000").split("\u0000");
+	const out: string[] = [];
+	for (const part of parts) {
+		const last = out[out.length - 1];
+		if (last !== undefined && textWidth(last + part, 12.5, true) <= TEXT_W) out[out.length - 1] = last + part;
+		else out.push(part);
+	}
+	return out.length <= 3 ? out.map((l) => truncate(l.trim(), TEXT_W, 12.5, true)) : wrap(rule, TEXT_W, 12.5, 3, true);
+}
+
+/** One of Claude's options, numbered like the terminal's picker. */
+export function optionKey(n: number, label: string | undefined, live: boolean): string {
+	if (!label) return frame(COLOURS.track, text(CX, 82, String(n), { size: 30, weight: 700, fill: COLOURS.track }));
+	const colour = live ? COLOURS.asking : COLOURS.track;
+	let size = 22;
+	let rows = wrap(label, TEXT_W, size, 2, true);
+	while (size > 13 && (rows.length > 3 || rows.some((r) => r.endsWith("…")))) {
+		size -= 2;
+		rows = wrap(label, TEXT_W, size, 3, true);
+	}
+	const lh = size + 3;
+	const y0 = 88 - ((rows.length - 1) * lh) / 2 + size * 0.35;
+	return frame(
+		colour,
+		circle(22, 30, 12, colour) +
+			text(22, 35, String(n), { size: 14, weight: 700, fill: live ? COLOURS.panel : COLOURS.faint }) +
+			lines(CX, y0, rows, lh, { size, weight: 700, fill: live ? COLOURS.ink : COLOURS.faint })
+	);
+}
+
+/** Lets go of the prompt so Claude's own picker or dialog takes it. */
+export function terminalKey(live: boolean): string {
+	const ink = live ? COLOURS.ink : COLOURS.faint;
+	return frame(
+		live ? COLOURS.idle : COLOURS.track,
+		`<rect x="38" y="34" width="68" height="50" rx="8" fill="none" stroke="${ink}" stroke-width="5"/>` +
+			`<path d="M 50 50 L 60 59 L 50 68" fill="none" stroke="${ink}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>` +
+			`<path d="M 66 69 L 86 69" stroke="${ink}" stroke-width="5" stroke-linecap="round"/>` +
+			text(CX, 116, "Use", { size: 15, weight: 700, fill: ink }) +
+			text(CX, 133, "terminal", { size: 15, weight: 700, fill: ink })
 	);
 }

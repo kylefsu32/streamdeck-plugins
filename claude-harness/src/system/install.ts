@@ -27,8 +27,12 @@ export const HOOK_EVENTS = [
 	"StopFailure"
 ] as const;
 
-/** PermissionRequest may hold the prompt for the deck, up to the longest hold the UI offers. */
-const TIMEOUTS: Partial<Record<(typeof HOOK_EVENTS)[number], number>> = { PermissionRequest: 330 };
+/**
+ * PermissionRequest may hold a prompt for the deck, and PreToolUse may hold an
+ * AskUserQuestion, up to the longest hold the settings offer. For every other
+ * tool PreToolUse returns in milliseconds; the timeout is only a ceiling.
+ */
+const TIMEOUTS: Partial<Record<(typeof HOOK_EVENTS)[number], number>> = { PermissionRequest: 330, PreToolUse: 330 };
 const DEFAULT_TIMEOUT = 5;
 
 type HookEntry = { type: "command"; command: string; timeout?: number };

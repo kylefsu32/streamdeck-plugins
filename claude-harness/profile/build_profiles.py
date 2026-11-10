@@ -40,11 +40,18 @@ def agents(cols, rows, start=1):
 
 # Model codes: 20GAA9902 Stream Deck MK.2 (5x3), 20GAI9901 Mini (3x2),
 # 20GAT9901 XL (8x4), 20GBD9901 Stream Deck + (4x2 keys).
+def options(cells):
+    """Option keys 1..n at the given positions."""
+    return {pos: key("option", option=str(i + 1)) for i, pos in enumerate(cells)}
+
+
 LAYOUTS = {
+    # The everyday pages.
     "Claude Harness": dict(model="20GAA9902", keys={
-        **agents(5, [0, 1]),
-        "0,2": key("question"), "1,2": key("allow"), "2,2": key("deny"),
-        "3,2": key("inbox"), "4,2": key("overview"),
+        **agents(4, [0]), "4,0": key("overview"),
+        **agents(4, [1], start=5), "4,1": key("inbox"),
+        "0,2": key("question"), "1,2": key("allow"), "2,2": key("always"),
+        "3,2": key("deny"), "4,2": key("terminal"),
     }),
     "Claude Harness Mini": dict(model="20GAI9901", keys={
         **agents(2, [0]),
@@ -53,12 +60,30 @@ LAYOUTS = {
     }),
     "Claude Harness XL": dict(model="20GAT9901", keys={
         **agents(8, [0, 1]),
-        "0,3": key("question"), "1,3": key("allow"), "2,3": key("deny"),
-        "6,3": key("inbox"), "7,3": key("overview"),
+        "0,3": key("question"), "1,3": key("allow"), "2,3": key("always"), "3,3": key("deny"),
+        "4,3": key("terminal"), "6,3": key("inbox"), "7,3": key("overview"),
     }),
     "Claude Harness Plus": dict(model="20GBD9901", keys={
         **agents(4, [0]),
         "0,1": key("question"), "1,1": key("allow"), "2,1": key("deny"), "3,1": key("overview"),
+    }),
+    # The answer pages the deck jumps to while a multiple-choice question is held,
+    # after hardkoded/streamdeck-claude-answer: the question, its options, a way out.
+    "Claude Harness Answer": dict(model="20GAA9902", keys={
+        "0,0": key("question"), "4,0": key("terminal"),
+        **options(["0,1", "1,1", "2,1", "3,1"]),
+        "4,2": key("overview"),
+    }),
+    "Claude Harness Answer Mini": dict(model="20GAI9901", keys={
+        "0,0": key("question"), **options(["1,0", "2,0", "0,1", "1,1"]), "2,1": key("terminal"),
+    }),
+    "Claude Harness Answer XL": dict(model="20GAT9901", keys={
+        "0,0": key("question"), "7,0": key("terminal"),
+        **options(["2,1", "3,1", "4,1", "5,1"]),
+    }),
+    "Claude Harness Answer Plus": dict(model="20GBD9901", keys={
+        **options(["0,0", "1,0", "2,0", "3,0"]),
+        "0,1": key("question"), "3,1": key("terminal"),
     }),
 }
 

@@ -29,6 +29,20 @@ export type Question = {
 	answerable: boolean;
 	/** When the hook stops holding and hands the prompt back to the terminal. */
 	holdUntil?: number;
+	/** The rule "Always allow" would save, e.g. `Bash(gh pr *)`; absent when no single safe rule is on offer. */
+	alwaysRule?: string;
+	/** AskUserQuestion's questions, one page of options each, answered in order on the deck. */
+	choices?: Choice[];
+};
+
+/** One multiple-choice question from AskUserQuestion. */
+export type Choice = {
+	/** The full question; AskUserQuestion's answers are keyed by it. */
+	question: string;
+	/** A few words for the key, e.g. "Approach". */
+	header: string;
+	options: Array<{ label: string; description: string }>;
+	multiSelect: boolean;
 };
 
 export type AgentRecord = {
@@ -57,7 +71,12 @@ export type AgentRecord = {
 /** An answer the deck leaves for a held permission prompt. */
 export type Answer = {
 	questionId: string;
-	behavior: "allow" | "deny";
+	/** "terminal" lets go of the prompt at once so the terminal shows it. */
+	behavior: "allow" | "always" | "deny" | "terminal";
+	/** For "always": keep the rule for this session only instead of the project's local settings. */
+	sessionOnly?: boolean;
+	/** For AskUserQuestion: question text → chosen option label. */
+	answers?: Record<string, string>;
 	at: number;
 };
 
@@ -68,15 +87,20 @@ export type HarnessConfig = {
 	 * it. 0 turns holding off entirely.
 	 */
 	holdSeconds: number;
+	/** The same for Claude's multiple-choice questions, which are rarely urgent. */
+	questionHoldSeconds: number;
 };
 
 /** The plugin's heartbeat: proof a deck with answer keys is listening. */
 export type DeckHeartbeat = {
 	at: number;
+	/** Allow / Deny keys on the deck: permission prompts can be answered. */
 	answerKeys: number;
+	/** Option keys on the deck, or a deck that will jump to the answer page: questions can be answered. */
+	optionKeys: number;
 };
 
-export const DEFAULT_CONFIG: HarnessConfig = { holdSeconds: 15 };
+export const DEFAULT_CONFIG: HarnessConfig = { holdSeconds: 15, questionHoldSeconds: 60 };
 
 /** A heartbeat older than this means no deck is listening, so the hook never holds. */
 export const HEARTBEAT_FRESH_MS = 12_000;

@@ -24,6 +24,7 @@ import {
 	type HarnessConfig
 } from "../state/types";
 import { applyHooks, hookCommand } from "../system/install";
+import { decision } from "./decision";
 
 const STALE_SESSION_MS = 24 * 3_600_000;
 const POLL_MS = 150;
@@ -60,27 +61,44 @@ export async function handle(input: HookInput): Promise<void> {
 		return;
 	}
 
-	if (input.hook_event_name === "PermissionRequest" && next.question) {
-		const hold = holdMs(now);
+	const held = heldKind(input);
+	if (held && next.question) {
+		const hold = holdMs(held, now);
 		if (hold > 0) {
 			next.question.answerable = true;
 			next.question.holdUntil = now + hold;
 			writeJsonAtomic(file, next);
 			const answer = await waitForAnswer(next.question.id, now + hold);
 			settleHeldQuestion(file, next.question.id, answer);
-			if (answer) process.stdout.write(JSON.stringify(decision(answer)));
+			const out = answer && decision(input, answer);
+			if (out) process.stdout.write(JSON.stringify(out));
 			return;
 		}
 	}
 	writeJsonAtomic(file, next);
 }
 
-/** How long to hold a permission prompt: only while a deck with answer keys is alive. */
-function holdMs(now: number): number {
+/**
+ * Which events may wait for the deck. A permission prompt waits in
+ * PermissionRequest. Claude's multiple-choice questions wait in PreToolUse,
+ * before Claude Code draws its own picker, and are answered by handing the
+ * tool its `answers` up front — the same field an Agent SDK host fills in.
+ */
+function heldKind(input: HookInput): "permission" | "question" | undefined {
+	if (input.hook_event_name === "PermissionRequest" && input.tool_name !== "AskUserQuestion") return "permission";
+	if (input.hook_event_name === "PreToolUse" && input.tool_name === "AskUserQuestion") return "question";
+	return undefined;
+}
+
+/** How long to hold: only while a deck that can answer this kind of prompt is alive. */
+function holdMs(kind: "permission" | "question", now: number): number {
 	const config = { ...DEFAULT_CONFIG, ...(readJson<HarnessConfig>(paths.config()) ?? {}) };
 	const beat = readJson<DeckHeartbeat>(paths.heartbeat());
-	if (!beat || now - beat.at > HEARTBEAT_FRESH_MS || beat.answerKeys < 1) return 0;
-	return Math.max(0, Math.min(300, Number(config.holdSeconds) || 0)) * 1000;
+	if (!beat || now - beat.at > HEARTBEAT_FRESH_MS) return 0;
+	const keys = kind === "permission" ? beat.answerKeys : beat.optionKeys;
+	if (!(keys >= 1)) return 0;
+	const seconds = kind === "permission" ? config.holdSeconds : config.questionHoldSeconds;
+	return Math.max(0, Math.min(300, Number(seconds) || 0)) * 1000;
 }
 
 async function waitForAnswer(questionId: string, until: number): Promise<Answer | undefined> {
@@ -105,27 +123,16 @@ function settleHeldQuestion(file: string, questionId: string, answer: Answer | u
 	const r = readJson<AgentRecord>(file);
 	if (!r || r.question?.id !== questionId) return;
 	const now = Date.now();
-	if (answer) {
+	if (answer && answer.behavior !== "terminal") {
 		r.state = "working";
-		r.activity = answer.behavior === "allow" ? `Allowed · ${r.question.tool}` : "Denied";
+		r.activity =
+			r.question.kind === "question" ? "Thinking" : answer.behavior === "deny" ? "Denied" : `Allowed · ${r.question.tool}`;
 		r.question = null;
 	} else {
 		r.question = { ...r.question, answerable: false, holdUntil: undefined };
 	}
 	r.updatedAt = now;
 	writeJsonAtomic(file, r);
-}
-
-function decision(answer: Answer): unknown {
-	return {
-		hookSpecificOutput: {
-			hookEventName: "PermissionRequest",
-			decision:
-				answer.behavior === "allow"
-					? { behavior: "allow" }
-					: { behavior: "deny", message: "Denied from the Stream Deck." }
-		}
-	};
 }
 
 /** A crashed or killed session never sends SessionEnd. Sweep its leftovers now and then. */

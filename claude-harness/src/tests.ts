@@ -11,6 +11,8 @@ import { reduce, toolLabel } from "./state/reduce";
 import { toAgent } from "./state/store";
 import { plainRecap } from "./state/transcript";
 import { MARKER, withHooks } from "./system/install";
+import { decision } from "./hook/decision";
+import { justDenied, rememberDeny, ruleText, safeUpdate } from "./state/rules";
 
 const S = "11111111-2222-3333-4444-555555555555";
 const ev = (hook_event_name: string, extra: Record<string, unknown> = {}) => ({
@@ -71,7 +73,7 @@ test("a permission notification without a PermissionRequest still asks", () => {
 });
 
 test("AskUserQuestion shows the question", () => {
-	const r = reduce(undefined, ev("PreToolUse", { tool_name: "AskUserQuestion", tool_input: { questions: [{ question: "Which branch?" }] } }), 1)!;
+	const r = reduce(undefined, ev("PreToolUse", { tool_name: "AskUserQuestion", tool_input: { questions: [{ question: "Which branch?", options: [{ label: "main" }] }] } }), 1)!;
 	assert.equal(r.state, "asking");
 	assert.equal(r.question?.detail, "Which branch?");
 });
@@ -125,4 +127,58 @@ test("elapsed reads like the device", () => {
 	assert.equal(elapsed(34_000), "0:34");
 	assert.equal(elapsed(725_000), "12:05");
 	assert.equal(elapsed(3_900_000), "1h 5m");
+});
+
+const suggest = (rules: Array<[string, string]>, extra: Record<string, unknown> = {}) => [
+	{ type: "addRules", behavior: "allow", destination: "userSettings", rules: rules.map(([toolName, ruleContent]) => ({ toolName, ruleContent })), ...extra }
+];
+
+test("always-allow takes only one concrete rule, never for MCP, never to user settings", () => {
+	const u = safeUpdate(suggest([["Bash", "gh pr *"]]), "Bash")!;
+	assert.equal(ruleText(u), "Bash(gh pr *)");
+	assert.equal(u.destination, "localSettings");
+	assert.equal(safeUpdate(suggest([["Bash", "gh pr *"]]), "Bash", true)!.destination, "session");
+	assert.equal(safeUpdate(suggest([["Bash", "a"], ["Bash", "b"]]), "Bash"), null);
+	assert.equal(safeUpdate([{ type: "setMode", mode: "acceptEdits" }], "Edit"), null);
+	assert.equal(safeUpdate(suggest([["mcp__x__y", "z"]]), "mcp__x__y"), null);
+	assert.equal(safeUpdate(suggest([["Bash", "x".repeat(60)]]), "Bash"), null);
+});
+
+test("a deny blocks always for the same rule for 30 s", () => {
+	const denies = rememberDeny([], "Bash(gh pr *)", 1000);
+	assert.equal(justDenied(denies, "Bash(gh pr *)", 20_000), true);
+	assert.equal(justDenied(denies, "Bash(ls *)", 20_000), false);
+	assert.equal(justDenied(denies, "Bash(gh pr *)", 32_000), false);
+});
+
+test("the permission question carries the rule always would save", () => {
+	const r = reduce(undefined, ev("PermissionRequest", { tool_name: "Bash", tool_input: { command: "gh pr list" }, permission_suggestions: suggest([["Bash", "gh pr *"]]) }), 1)!;
+	assert.equal(r.question?.alwaysRule, "Bash(gh pr *)");
+});
+
+test("decisions: allow, always, deny, terminal, and answers for a question", () => {
+	const perm = ev("PermissionRequest", { tool_name: "Bash", permission_suggestions: suggest([["Bash", "gh pr *"]]) });
+	const out = (a: Record<string, unknown>, input = perm) =>
+		JSON.stringify(decision(input, { questionId: "q", at: 0, behavior: "allow", ...a } as never));
+	assert.match(out({}), /"behavior":"allow"/);
+	assert.match(out({ behavior: "deny" }), /"behavior":"deny"/);
+	assert.match(out({ behavior: "always" }), /"updatedPermissions":\[\{"type":"addRules","behavior":"allow","destination":"localSettings"/);
+	assert.equal(decision(perm, { questionId: "q", at: 0, behavior: "terminal" }), undefined);
+
+	const ask = ev("PreToolUse", { tool_name: "AskUserQuestion", tool_input: { questions: [{ question: "Which?", header: "H", options: [{ label: "A" }] }] } });
+	const d = decision(ask, { questionId: "q", at: 0, behavior: "allow", answers: { "Which?": "A" } }) as {
+		hookSpecificOutput: { permissionDecision: string; updatedInput: { answers: Record<string, string>; questions: unknown[] } };
+	};
+	assert.equal(d.hookSpecificOutput.permissionDecision, "allow");
+	assert.deepEqual(d.hookSpecificOutput.updatedInput.answers, { "Which?": "A" });
+	assert.equal(d.hookSpecificOutput.updatedInput.questions.length, 1, "the original questions travel with the answers");
+});
+
+test("AskUserQuestion options are parsed and survive the PermissionRequest that follows", () => {
+	const input = { questions: [{ question: "Which?", header: "Approach", options: [{ label: "A", description: "a" }, { label: "B" }] }] };
+	let r = reduce(undefined, ev("PreToolUse", { tool_name: "AskUserQuestion", tool_input: input, tool_use_id: "t" }), 1)!;
+	assert.deepEqual(r.question?.choices?.[0]?.options.map((o) => o.label), ["A", "B"]);
+	r = reduce(r, ev("PermissionRequest", { tool_name: "AskUserQuestion", tool_input: input, tool_use_id: "t" }), 2)!;
+	assert.equal(r.question?.kind, "question");
+	assert.equal(r.question?.choices?.length, 1);
 });

@@ -1,7 +1,8 @@
 import { mkdirSync, readdirSync, watch, type FSWatcher } from "node:fs";
 import path from "node:path";
 
-import { paths, readJson, writeJsonAtomic } from "./paths";
+import { claudeHome, paths, readJson, writeJsonAtomic } from "./paths";
+import { justDenied, rememberDeny, type RecentDeny } from "./rules";
 import { DEFAULT_CONFIG, type AgentRecord, type Answer, type DeckHeartbeat, type HarnessConfig, type Question } from "./types";
 
 /** An agent as the keys draw it: the hook's record plus what only the deck knows. */
@@ -36,6 +37,11 @@ export class HarnessStore {
 	#signature = "";
 	#questionCursor = 0;
 	#answerKeys = new Set<string>();
+	#optionKeys = new Set<string>();
+	#takeover = false;
+	/** Options picked so far for a multi-question AskUserQuestion, by question id. */
+	#picks = new Map<string, string[]>();
+	#denies: RecentDeny[] = [];
 	#config: HarnessConfig = { ...DEFAULT_CONFIG };
 
 	start(): void {
@@ -120,17 +126,67 @@ export class HarnessStore {
 	}
 
 	/** Leaves an answer for the hook that is holding this prompt. */
-	answer(question: Question, behavior: Answer["behavior"]): boolean {
-		if (!question.answerable || (question.holdUntil && Date.now() > question.holdUntil)) return false;
-		const answer: Answer = { questionId: question.id, behavior, at: Date.now() };
+	answer(
+		question: Question,
+		behavior: Answer["behavior"],
+		extra: { answers?: Record<string, string>; sessionOnly?: boolean } = {}
+	): boolean {
+		const now = Date.now();
+		if (!question.answerable || (question.holdUntil && now > question.holdUntil)) return false;
+		if (behavior === "always" && (!question.alwaysRule || this.alwaysBlocked(question))) return false;
+		if (behavior === "deny") this.#denies = rememberDeny(this.#denies, question.alwaysRule, now);
+		const answer: Answer = { questionId: question.id, behavior, ...extra, at: now };
 		writeJsonAtomic(paths.answer(question.id), answer);
+		this.#picks.delete(question.id);
 		return true;
+	}
+
+	/** Which of AskUserQuestion's questions the deck is on (0-based). */
+	step(question: Question): number {
+		return this.#picks.get(question.id)?.length ?? 0;
+	}
+
+	/**
+	 * Picks option `index` for the question on screen. The last pick sends the
+	 * whole set of answers; earlier ones move the deck to the next question.
+	 */
+	pick(question: Question, index: number): "sent" | "next" | "invalid" {
+		const choices = question.choices ?? [];
+		const picks = [...(this.#picks.get(question.id) ?? [])];
+		const option = choices[picks.length]?.options[index];
+		if (!option || !question.answerable) return "invalid";
+		picks.push(option.label);
+		if (picks.length < choices.length) {
+			this.#picks.set(question.id, picks);
+			this.#emit();
+			return "next";
+		}
+		const answers = Object.fromEntries(choices.map((c, i) => [c.question, picks[i]!]));
+		return this.answer(question, "allow", { answers }) ? "sent" : "invalid";
+	}
+
+	/** Always is refused for 30 s after denying a call its rule would re-permit (Claude retries at once). */
+	alwaysBlocked(question: Question): boolean {
+		return justDenied(this.#denies, question.alwaysRule, Date.now());
 	}
 
 	/** Answer keys on the deck register here; while any exist the hook may hold prompts. */
 	setAnswerKey(id: string, present: boolean): void {
 		if (present) this.#answerKeys.add(id);
 		else this.#answerKeys.delete(id);
+		this.#beat();
+	}
+
+	/** Option keys, likewise, for Claude's multiple-choice questions. */
+	setOptionKey(id: string, present: boolean): void {
+		if (present) this.#optionKeys.add(id);
+		else this.#optionKeys.delete(id);
+		this.#beat();
+	}
+
+	/** True when a deck will jump to the answer page by itself, so questions are worth holding. */
+	setTakeover(on: boolean): void {
+		this.#takeover = on;
 		this.#beat();
 	}
 
@@ -144,7 +200,11 @@ export class HarnessStore {
 	}
 
 	#beat(): void {
-		const beat: DeckHeartbeat = { at: Date.now(), answerKeys: this.#answerKeys.size };
+		const beat: DeckHeartbeat = {
+			at: Date.now(),
+			answerKeys: this.#answerKeys.size,
+			optionKeys: this.#optionKeys.size + (this.#takeover ? 1 : 0)
+		};
 		try {
 			writeJsonAtomic(paths.heartbeat(), beat);
 		} catch {
@@ -175,7 +235,9 @@ export class HarnessStore {
 
 	#rebuild(records: AgentRecord[]): void {
 		const now = Date.now();
+		const dead = deadSessions();
 		const agents = records
+			.filter((r) => !dead.has(r.id))
 			.filter((r) => now - r.updatedAt < HIDE_AFTER_MS || r.state === "asking")
 			.map((r) => toAgent(r, this.#acks, now))
 			.sort((a, b) => a.startedAt - b.startedAt || a.id.localeCompare(b.id));
@@ -206,6 +268,46 @@ export class HarnessStore {
 		const live = new Set(this.#records().map((r) => r.id));
 		for (const id of Object.keys(this.#acks)) if (!live.has(id)) delete this.#acks[id];
 		writeJsonAtomic(this.#acksFile(), this.#acks);
+	}
+}
+
+/**
+ * Sessions whose Claude process is gone. Claude Code keeps a small file per
+ * running process in ~/.claude/sessions/<pid>.json with its sessionId (seen
+ * by tapparello/agent-vitals), so a session killed without SessionEnd can be
+ * dropped at once instead of after the 12-hour timeout. A session with no
+ * such file is left alone: older versions and the IDE extensions may not
+ * write one.
+ */
+function deadSessions(): Set<string> {
+	const dead = new Set<string>();
+	const live = new Set<string>();
+	const dir = path.join(claudeHome(), "sessions");
+	let names: string[] = [];
+	try {
+		names = readdirSync(dir).filter((n) => n.endsWith(".json"));
+	} catch {
+		return dead;
+	}
+	for (const name of names) {
+		const s = readJson<{ sessionId?: string; pid?: number }>(path.join(dir, name));
+		const pid = Number(s?.pid ?? Number.parseInt(name, 10));
+		if (!s?.sessionId || !Number.isInteger(pid) || pid <= 0) continue;
+		if (processAlive(pid)) live.add(s.sessionId);
+		else dead.add(s.sessionId);
+	}
+	// A resumed session can leave an old pid file behind next to its live one.
+	for (const id of live) dead.delete(id);
+	return dead;
+}
+
+function processAlive(pid: number): boolean {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (err) {
+		// EPERM: it exists, it just isn't ours to signal.
+		return (err as NodeJS.ErrnoException).code === "EPERM";
 	}
 }
 

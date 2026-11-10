@@ -18,9 +18,21 @@
 		</sdpi-item>
 		<sdpi-item label="">
 			<p style="color:#9a9aa6;font-size:9pt;margin:0">
-				While an Allow or Deny key is on the deck, a permission prompt waits this long for an answer
-				from the deck before the terminal shows it.
+				While Allow, Always or Deny is on the deck, a permission prompt also waits this long for the deck.
+				The terminal prompt stays usable; whichever answers first wins.
 			</p>
+		</sdpi-item>
+		<sdpi-item label="Hold questions">
+			<sdpi-select setting="questionHoldSeconds" global default="60">
+				<option value="0">Off: answer in the terminal</option>
+				<option value="30">30 seconds for the deck</option>
+				<option value="60">1 minute for the deck</option>
+				<option value="120">2 minutes for the deck</option>
+				<option value="300">5 minutes for the deck</option>
+			</sdpi-select>
+		</sdpi-item>
+		<sdpi-item label="Answer page">
+			<sdpi-checkbox setting="takeover" global default="true" label="Jump to the answer page for a question"></sdpi-checkbox>
 		</sdpi-item>
 		<sdpi-item label="Hooks">
 			<sdpi-checkbox setting="manualHooks" global label="I installed the hook myself"></sdpi-checkbox>

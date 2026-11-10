@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+	<head lang="en">
+		<meta charset="utf-8" />
+		<script src="https://sdpi-components.dev/releases/v4/sdpi-components.js"></script>
+	</head>
+	<body>
+		<sdpi-item label="Option">
+			<sdpi-select setting="option" default="1">
+				<option value="1">1</option>
+				<option value="2">2</option>
+				<option value="3">3</option>
+				<option value="4">4</option>
+			</sdpi-select>
+		</sdpi-item>
+		<sdpi-item label="Hold questions">
+			<sdpi-select setting="questionHoldSeconds" global default="60">
+				<option value="0">Off: answer in the terminal</option>
+				<option value="30">30 seconds for the deck</option>
+				<option value="60">1 minute for the deck</option>
+				<option value="120">2 minutes for the deck</option>
+				<option value="300">5 minutes for the deck</option>
+			</sdpi-select>
+		</sdpi-item>
+		<sdpi-item label="Answer page">
+			<sdpi-checkbox setting="takeover" global default="true" label="Jump to the answer page for a question"></sdpi-checkbox>
+		</sdpi-item>
+	</body>
+</html>

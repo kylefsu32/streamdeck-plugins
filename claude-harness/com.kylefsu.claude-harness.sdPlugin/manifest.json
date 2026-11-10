@@ -124,6 +124,66 @@
 				}
 			],
 			"PropertyInspectorPath": "ui/settings.html"
+		},
+		{
+			"Name": "Always Allow",
+			"UUID": "com.kylefsu.claude-harness.always",
+			"Icon": "imgs/actions/always/icon",
+			"Tooltip": "Allow the prompt and save the rule Claude Code suggests (shown on the key). Refuses when no single safe rule is on offer.",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/always/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/always.html"
+		},
+		{
+			"Name": "Option",
+			"UUID": "com.kylefsu.claude-harness.option",
+			"Icon": "imgs/actions/option/icon",
+			"Tooltip": "Option N of Claude's multiple-choice question on the Needs You key. Press to answer.",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/option/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/option.html"
+		},
+		{
+			"Name": "Use Terminal",
+			"UUID": "com.kylefsu.claude-harness.terminal",
+			"Icon": "imgs/actions/terminal/icon",
+			"Tooltip": "Let go of the held prompt or question so Claude Code's own picker shows it now.",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/terminal/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/settings.html"
 		}
 	],
 	"Category": "Claude Harness",
@@ -169,6 +229,30 @@
 			"Name": "Claude Harness Plus",
 			"DeviceType": 7,
 			"Readonly": false
+		},
+		{
+			"Name": "Claude Harness Answer",
+			"DeviceType": 0,
+			"Readonly": false,
+			"DontAutoSwitchWhenInstalled": true
+		},
+		{
+			"Name": "Claude Harness Answer Mini",
+			"DeviceType": 1,
+			"Readonly": false,
+			"DontAutoSwitchWhenInstalled": true
+		},
+		{
+			"Name": "Claude Harness Answer XL",
+			"DeviceType": 2,
+			"Readonly": false,
+			"DontAutoSwitchWhenInstalled": true
+		},
+		{
+			"Name": "Claude Harness Answer Plus",
+			"DeviceType": 7,
+			"Readonly": false,
+			"DontAutoSwitchWhenInstalled": true
 		}
 	],
 	"UUID": "com.kylefsu.claude-harness"

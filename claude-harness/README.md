@@ -3,8 +3,9 @@
 Your Claude Code sessions on the deck, the way the
 [OpenHarness](https://github.com/autonomous-ai/openharness) **Harness device** shows
 them on its round dial: which session is working and on what, which one finished
-and what it did, and which one is waiting on you. You can answer a permission
-prompt from the deck without switching windows.
+and what it did, and which one is waiting on you. You can answer permission
+prompts and Claude's multiple-choice questions from the deck without switching
+windows.
 
 Run `npm run preview` to see every key face in `dist/preview.html`.
 
@@ -30,19 +31,28 @@ same coloured top bar, so you can read the deck at a glance:
 | **Overview** | Counts how many sessions need you, are working, and finished unread, like the dial's overview. Pressing it marks every finished turn as read. |
 | **Inbox** | Shows the newest unread recap, with a badge for how many are waiting. Pressing it marks that one as read and shows the next, like the device's notification drawer. |
 | **Needs You** | Shows the prompt that has waited longest. When there are several, a `1/3` counter appears and pressing the key steps to the next. |
-| **Allow / Deny** | Answers the prompt shown on Needs You. The keys only light up when the deck is able to answer that prompt (see below). |
+| **Allow / Deny** | Answers the permission prompt shown on Needs You. The keys only light up when the deck is able to answer that prompt (see below). |
+| **Always Allow** | Allows the prompt and saves the rule Claude Code suggests, which is shown on the key (`Bash(gh pr *)`). It shows the rule rather than the command because the rule is what gets saved. It refuses when no single safe rule is on offer, and for 30 seconds after you deny something the rule would re-allow. See below. |
+| **Option** | Option 1–4 of Claude's multiple-choice question (AskUserQuestion). Pressing it answers. A question with several parts takes one press per part. |
+| **Use Terminal** | Lets go of the held prompt or question right away, so Claude Code's own picker shows it. |
 
 ### Ready-made profiles
 
 Installing the plugin also installs a profile for your device, so a working page is
 ready before you place any keys:
 
-- **MK.2 / 15 keys:** two rows of Agent keys (sessions 1–10), then Needs You, Allow, Deny, Inbox and Overview.
+- **MK.2 / 15 keys:** sessions 1–4 with Overview, then sessions 5–8 with Inbox, then Needs You, Allow, Always, Deny and Use Terminal.
 - **Mini:** sessions 1–2 and Overview on top, with Needs You, Allow and Deny below.
-- **XL:** sessions 1–16 on the top two rows. Row 3 is left free for your own keys, and the bottom row holds Needs You, Allow, Deny, Inbox and Overview.
+- **XL:** sessions 1–16 on the top two rows. Row 3 is left free for your own keys, and the bottom row holds Needs You, Allow, Always, Deny, Use Terminal, Inbox and Overview.
 - **Stream Deck +:** sessions 1–4, then Needs You, Allow, Deny and Overview.
 
-`profile/build_profiles.py` (`npm run profiles`) generates the profiles from its `LAYOUTS` table.
+Each device also gets an **answer page**: the question, its options as large keys,
+and Use Terminal. When Claude asks a multiple-choice question and the deck can answer
+it, the deck jumps to that page. Once the question is answered, or the hold runs out,
+the deck goes back to the page you were on. To stop the jump, turn off *Jump to the
+answer page* in any key's settings.
+
+`profile/build_profiles.py` (`npm run profiles`) generates every profile from its `LAYOUTS` table.
 
 ## How it works
 
@@ -84,26 +94,51 @@ app starts.
 
 ### Answering prompts from the deck
 
-A `PermissionRequest` hook can answer a prompt itself. While an **Allow** or **Deny**
-key is on the deck, the plugin writes a heartbeat. If the heartbeat is fresh, the
-hook *holds* each new prompt for a set time (15 seconds by default):
+**Permission prompts.** A `PermissionRequest` hook can answer a prompt itself. While
+an **Allow**, **Always** or **Deny** key is on the deck, the plugin writes a
+heartbeat. If the heartbeat is fresh, the hook waits up to 15 seconds (you can change
+this) for a press. The prompt appears on Needs You with a countdown
+(`Answer on deck · 12s`). The terminal prompt stays usable the whole time, and
+whichever is answered first wins. agent-vitals observed this behaviour on real
+hardware.
 
-- The prompt appears on Needs You, with a countdown that reads `Answer on deck · 12s`.
-- Pressing Allow or Deny leaves an answer file. The hook picks it up and returns the
-  decision to Claude Code, and the session goes back to working.
-- If nobody presses anything before the time runs out, the hook steps aside and the
-  normal prompt appears in the terminal. The key then says `Answer in terminal`.
+**Always Allow** follows rules agent-vitals learned the hard way:
 
-While a prompt is held, the terminal shows nothing for it, so pick a hold time that
-suits you. You can choose *Off*, 10 s, 15 s, 30 s, 1 min or 5 min in any key's
-settings. Off, or removing the Allow and Deny keys, turns holding off completely.
+- It only echoes back one concrete `addRules` allow rule. It never passes on
+  `setMode` or `addDirectories`, and never anything for MCP tools.
+- The rule must be short enough to show in full.
+- The rule is saved to the project's local settings, or to the session if you tick
+  *For this session only*. It is never saved to your user settings.
+- After a Deny, Claude retries the same call within about two seconds, and the
+  retry looks identical on the key. So for 30 seconds the key reads `just denied`
+  and refuses a rule that would re-allow the call you just refused.
+
+**Multiple-choice questions.** These wait in `PreToolUse`, before Claude Code draws
+its picker. They are held only while an Option key is on the deck, or a deck can jump
+to the answer page. The hold lasts 60 seconds by default, and you can change it.
+Pressing an option hands the tool its `answers` up front, which is the same field an
+Agent SDK host fills in, so Claude never opens the picker. During the hold the
+terminal shows the hook running instead of the picker. Press **Use Terminal**, or
+wait out the hold, to get the picker back.
+
+Setting a hold to *Off*, or removing the matching keys, turns holding off completely.
+
+**Not yet verified on real hardware.** I haven't watched these work against a live
+session. Answering with `updatedInput.answers` from `PreToolUse` and the profile jump
+are the two to check first.
+
+### Sessions that ended without saying so
+
+Claude Code keeps a file per running process in `~/.claude/sessions/` that names its
+session. A session whose process is gone drops off the deck at once, without waiting
+for the 12-hour timeout. Sessions with no such file are left alone.
 
 ## Build
 
 ```bash
 npm install
 npm run build            # plugin + hook into com.kylefsu.claude-harness.sdPlugin/bin/
-npm test                 # reducer, settings merge, text fitting
+npm test                 # reducer, settings merge, rules, decisions, text fitting
 npm run preview          # dist/preview.html
 npx streamdeck link com.kylefsu.claude-harness.sdPlugin
 npm run package          # dist/com.kylefsu.claude-harness.streamDeckPlugin
@@ -125,5 +160,13 @@ Playwright's Chromium.
   the plugin, key art with a coloured state bar and the label drawn into the image,
   and Allow / Deny on physical keys. The profile builder is written fresh, after
   its `build_profile.py`.
+- [streamdeck-claude-answer](https://github.com/hardkoded/streamdeck-claude-answer)
+  (MIT, Dario Kondratiuk) supplied the answer page: jump the deck to a page with the
+  question, its options and a way back to the terminal, then return. Here it is
+  wired to Claude's own AskUserQuestion rather than a separate CLI.
+- [Agent Vitals](https://github.com/tapparello/agent-vitals) (MIT) supplied the Always
+  Allow rules and the deny guard, the fact that the terminal prompt stays usable while
+  a PermissionRequest hook is pending, the `~/.claude/sessions` liveness check, and
+  telling Allow, Always and Deny apart by shape as well as colour.
 
 Not affiliated with Anthropic, Autonomous or Elgato.
