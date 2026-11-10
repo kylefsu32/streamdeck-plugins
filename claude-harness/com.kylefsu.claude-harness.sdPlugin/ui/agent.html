@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+	<head lang="en">
+		<meta charset="utf-8" />
+		<script src="https://sdpi-components.dev/releases/v4/sdpi-components.js"></script>
+	</head>
+	<body>
+		<sdpi-item label="Slot">
+			<sdpi-select setting="slot" default="1">
+				<option value="1">1st session</option>
+				<option value="2">2nd session</option>
+				<option value="3">3rd session</option>
+				<option value="4">4th session</option>
+				<option value="5">5th session</option>
+				<option value="6">6th session</option>
+				<option value="7">7th session</option>
+				<option value="8">8th session</option>
+			</sdpi-select>
+		</sdpi-item>
+		<sdpi-item label="Pin project">
+			<sdpi-textfield setting="project" placeholder="folder name, e.g. streamdeck-plugins"></sdpi-textfield>
+		</sdpi-item>
+		<sdpi-item label="">
+			<p style="color:#9a9aa6;font-size:9pt;margin:0">
+				Sessions are numbered in the order they started. Pin a project to follow the session in that folder
+				instead.
+			</p>
+		</sdpi-item>
+	</body>
+</html>
