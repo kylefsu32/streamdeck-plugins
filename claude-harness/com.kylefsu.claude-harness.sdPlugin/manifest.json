@@ -184,6 +184,53 @@
 				}
 			],
 			"PropertyInspectorPath": "ui/settings.html"
+		},
+		{
+			"Name": "Usage",
+			"UUID": "com.kylefsu.claude-harness.usage",
+			"Icon": "imgs/actions/usage/icon",
+			"Tooltip": "One Claude limit (session, weekly, Opus, Sonnet) as a bar, a ring or a forecast. Press to refresh.",
+			"Controllers": [
+				"Keypad"
+			],
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/usage/key",
+					"TitleAlignment": "middle",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/usage.html"
+		},
+		{
+			"Name": "Usage Strip",
+			"UUID": "com.kylefsu.claude-harness.usage-strip",
+			"Icon": "imgs/actions/usage-strip/icon",
+			"Tooltip": "A Claude limit on the Stream Deck + touch strip. Turn to switch limits, press to refresh.",
+			"Controllers": [
+				"Encoder"
+			],
+			"Encoder": {
+				"layout": "layouts/usage-strip.json",
+				"TriggerDescription": {
+					"Rotate": "Switch limit",
+					"Push": "Refresh",
+					"Touch": "Refresh"
+				}
+			},
+			"SupportedInMultiActions": false,
+			"DisableAutomaticStates": true,
+			"UserTitleEnabled": false,
+			"States": [
+				{
+					"Image": "imgs/actions/usage-strip/key",
+					"ShowTitle": false
+				}
+			],
+			"PropertyInspectorPath": "ui/usage-strip.html"
 		}
 	],
 	"Category": "Claude Harness",

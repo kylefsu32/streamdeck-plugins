@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+	<head lang="en">
+		<meta charset="utf-8" />
+		<script src="https://sdpi-components.dev/releases/v4/sdpi-components.js"></script>
+	</head>
+	<body>
+		<sdpi-item label="Limit">
+			<sdpi-select setting="metric" default="seven_day">
+				<option value="five_hour">Session (5 hours)</option>
+				<option value="seven_day">Weekly</option>
+				<option value="seven_day_opus">Weekly · Opus</option>
+				<option value="seven_day_sonnet">Weekly · Sonnet</option>
+			</sdpi-select>
+		</sdpi-item>
+		<sdpi-item label="Style">
+			<sdpi-select setting="style" default="bar">
+				<option value="bar">Bar</option>
+				<option value="ring">Ring</option>
+				<option value="forecast">Forecast</option>
+			</sdpi-select>
+		</sdpi-item>
+		<sdpi-item label="">
+			<p style="color:#9a9aa6;font-size:9pt;margin:0">
+				Read with your Claude Code sign-in from the same endpoint /usage uses, at most once a minute. On macOS,
+				choose Always Allow when asked for keychain access.
+			</p>
+		</sdpi-item>
+	</body>
+</html>

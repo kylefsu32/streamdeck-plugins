@@ -3,6 +3,7 @@ import streamDeck from "@elgato/streamdeck";
 import path from "node:path";
 
 import { AgentKey, AllowKey, AlwaysKey, DenyKey, InboxKey, OptionKey, OverviewKey, QuestionKey, TerminalKey } from "./actions/keys";
+import { UsageKey, UsageStrip } from "./actions/usage";
 import { Takeover } from "./system/takeover";
 import { store } from "./state/store";
 import { applyHooks, hookCommand } from "./system/install";
@@ -52,6 +53,8 @@ streamDeck.actions.registerAction(new DenyKey());
 streamDeck.actions.registerAction(new AlwaysKey());
 streamDeck.actions.registerAction(new OptionKey());
 streamDeck.actions.registerAction(new TerminalKey());
+streamDeck.actions.registerAction(new UsageKey());
+streamDeck.actions.registerAction(new UsageStrip());
 
 const takeover = new Takeover(log);
 

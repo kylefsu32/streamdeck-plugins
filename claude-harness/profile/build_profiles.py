@@ -60,6 +60,9 @@ LAYOUTS = {
     }),
     "Claude Harness XL": dict(model="20GAT9901", keys={
         **agents(8, [0, 1]),
+        "0,2": key("usage", metric="seven_day", style="bar"),
+        "1,2": key("usage", metric="five_hour", style="ring"),
+        "2,2": key("usage", metric="seven_day", style="forecast"),
         "0,3": key("question"), "1,3": key("allow"), "2,3": key("always"), "3,3": key("deny"),
         "4,3": key("terminal"), "6,3": key("inbox"), "7,3": key("overview"),
     }),

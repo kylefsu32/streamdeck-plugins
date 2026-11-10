@@ -6,6 +6,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 
 import { agentKey, alwaysKey, answerKey, emptyAgentKey, inboxKey, optionKey, overviewKey, questionKey, terminalKey } from "./render/keys";
 import type { Agent } from "./state/store";
+import { usageBarKey, usageForecastKey, usageRingKey, usageStrip } from "./render/usage";
+import type { UsageSnapshot } from "./usage/client";
 
 const now = Date.now();
 const base: Agent = {
@@ -63,6 +65,15 @@ const choosing = agent({
 	state: "asking",
 	question: { id: "q2", kind: "question", tool: "Approach", detail: choices[0]!.question, at: now, answerable: true, holdUntil: now + 90_000, choices }
 });
+// Weekly at 61% four days in, reset in three: on course for ~107%, locking before the reset.
+const usage: UsageSnapshot = {
+	at: now,
+	metrics: {
+		seven_day: { utilization: 61, resetsAt: now + 3 * 86_400_000 },
+		five_hour: { utilization: 34, resetsAt: now + 2 * 3_600_000 + 36 * 60_000 }
+	}
+};
+const calm: UsageSnapshot = { at: now, metrics: { seven_day: { utilization: 30, resetsAt: now + 3 * 86_400_000 } } };
 const done = agent({
 	id: "d",
 	project: "openharness",
@@ -110,7 +121,16 @@ const tiles: Array<[string, string]> = [
 	["Option 3", optionKey(3, "Leave it for now", true)],
 	["Option 4 · long", optionKey(4, "Rewrite the client with backoff", true)],
 	["Option · none", optionKey(4, undefined, false)],
-	["Use terminal", terminalKey(true)]
+	["Use terminal", terminalKey(true)],
+	["Usage · bar", usageBarKey({ metric: "seven_day", snapshot: usage, now })],
+	["Usage · ring", usageRingKey({ metric: "five_hour", snapshot: usage, now })],
+	["Usage · forecast", usageForecastKey({ metric: "seven_day", snapshot: usage, now })],
+	["Usage · forecast, on pace", usageForecastKey({ metric: "seven_day", snapshot: calm, now })],
+	["Usage · signed out", usageBarKey({ metric: "seven_day", snapshot: { at: now, metrics: {}, error: { kind: "no-credentials", message: "" } }, now })]
+];
+const strips: Array<[string, string]> = [
+	["Usage strip (Stream Deck +)", usageStrip({ metric: "seven_day", snapshot: usage, now })],
+	["Usage strip · session", usageStrip({ metric: "five_hour", snapshot: usage, now })]
 ];
 
 mkdirSync("dist/preview", { recursive: true });
@@ -119,7 +139,13 @@ const cells = tiles
 		writeFileSync(`dist/preview/${String(i).padStart(2, "0")}.svg`, svg);
 		return `<figure><img src="preview/${String(i).padStart(2, "0")}.svg" width="144" height="144"><figcaption>${label}</figcaption></figure>`;
 	})
-	.join("\n");
+	.join("\n") +
+	strips
+		.map(([label, svg], i) => {
+			writeFileSync(`dist/preview/strip-${i}.svg`, svg);
+			return `<figure><img src="preview/strip-${i}.svg" width="200" height="100"><figcaption>${label}</figcaption></figure>`;
+		})
+		.join("\n");
 writeFileSync(
 	"dist/preview.html",
 	`<!doctype html><meta charset="utf-8"><title>Claude Harness keys</title>

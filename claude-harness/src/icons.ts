@@ -4,6 +4,7 @@
  */
 import { alwaysKey, answerKey, emptyAgentKey, inboxKey, optionKey, overviewKey, questionKey, terminalKey } from "./render/keys";
 import { arc } from "./render/svg";
+import { usageBarKey, usageRingKey } from "./render/usage";
 
 const icon = (body: string) =>
 	`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">${body}</svg>`;
@@ -19,7 +20,9 @@ export const keyArt: Record<string, string> = {
 	deny: answerKey("deny", false),
 	always: alwaysKey(undefined, false),
 	option: optionKey(1, undefined, false),
-	terminal: terminalKey(false)
+	terminal: terminalKey(false),
+	usage: usageBarKey({ metric: "seven_day", snapshot: null, now: 0 }),
+	"usage-strip": usageRingKey({ metric: "seven_day", snapshot: null, now: 0 })
 };
 
 /** Monochrome glyphs for the action list, as Elgato's guidelines ask. */
@@ -34,6 +37,8 @@ export const actionIcons: Record<string, string> = {
 	deny: icon(`<path d="M 11 11 L 29 29 M 29 11 L 11 29" fill="none" stroke="${W}" stroke-width="4" stroke-linecap="round"/>`),
 	always: icon(`<path d="M 4 21 L 10 27 L 21 14 M 17 21 L 23 27 L 36 12" fill="none" stroke="${W}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`),
 	option: icon(`<rect x="5" y="8" width="30" height="24" rx="5" fill="none" stroke="${W}" stroke-width="3"/><text x="20" y="26" font-family="Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="${W}" text-anchor="middle">1</text>`),
+	usage: icon(`<rect x="6" y="14" width="28" height="8" rx="4" fill="none" stroke="${W}" stroke-width="2.5"/><rect x="6" y="14" width="17" height="8" rx="4" fill="${W}"/><rect x="6" y="27" width="16" height="3" rx="1.5" fill="${W}" opacity="0.5"/>`),
+	"usage-strip": icon(`<rect x="4" y="11" width="32" height="18" rx="5" fill="none" stroke="${W}" stroke-width="2.5"/><rect x="9" y="18" width="15" height="4" rx="2" fill="${W}"/>`),
 	terminal: icon(`<rect x="5" y="8" width="30" height="24" rx="4" fill="none" stroke="${W}" stroke-width="3"/><path d="M 11 15 L 16 20 L 11 25 M 19 25 L 28 25" fill="none" stroke="${W}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`)
 };
 

@@ -10,6 +10,7 @@ import { textWidth, wrap } from "./render/svg";
 import { reduce, toolLabel } from "./state/reduce";
 import { toAgent } from "./state/store";
 import { plainRecap } from "./state/transcript";
+import { countdown, forecast } from "./usage/forecast";
 import { MARKER, withHooks } from "./system/install";
 import { decision } from "./hook/decision";
 import { justDenied, rememberDeny, ruleText, safeUpdate } from "./state/rules";
@@ -181,4 +182,17 @@ test("AskUserQuestion options are parsed and survive the PermissionRequest that 
 	r = reduce(r, ev("PermissionRequest", { tool_name: "AskUserQuestion", tool_input: input, tool_use_id: "t" }), 2)!;
 	assert.equal(r.question?.kind, "question");
 	assert.equal(r.question?.choices?.length, 1);
+});
+
+test("forecast carries the pace to the reset and finds the lock date", () => {
+	const day = 86_400_000;
+	const now = 10 * day;
+	// Four of seven days gone at 61%: 15.25%/day, ~107% by the reset, locks in ~2.6 days.
+	const f = forecast("seven_day", { utilization: 61, resetsAt: now + 3 * day }, now)!;
+	assert.ok(Math.abs(f.projected - 106.75) < 0.01);
+	assert.ok(Math.abs(f.rate - 15.25) < 0.01);
+	assert.ok(f.locksAt! > now + 2.5 * day && f.locksAt! < now + 2.6 * day);
+	assert.equal(forecast("seven_day", { utilization: 30, resetsAt: now + 3 * day }, now)!.locksAt, null);
+	assert.equal(forecast("seven_day", { utilization: 1, resetsAt: now + 6.9 * day }, now), null, "too early to say");
+	assert.equal(countdown(now + 156 * 60_000, now), "2h 36m");
 });

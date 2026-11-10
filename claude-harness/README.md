@@ -36,6 +36,21 @@ same coloured top bar, so you can read the deck at a glance:
 | **Option** | Option 1–4 of Claude's multiple-choice question (AskUserQuestion). Pressing it answers. A question with several parts takes one press per part. |
 | **Use Terminal** | Lets go of the held prompt or question right away, so Claude Code's own picker shows it. |
 
+### Usage keys
+
+| Action | What it shows |
+| --- | --- |
+| **Usage** | One limit (session, weekly, Opus or Sonnet) in one of three styles. **Bar:** the percent, the reset date, the other window and a fill bar. **Ring:** the percent and the time to reset. **Forecast:** where the window ends at the current pace, with `Locks 12 Nov` in red if that comes before the reset, and the rate per day or hour. Press to refresh. |
+| **Usage Strip** | The same on a Stream Deck + touch strip. Turn the dial to switch limits, and press or tap to refresh. |
+
+The numbers come from the same endpoint `/usage` reads, using your Claude Code
+sign-in, at most once a minute and only while a usage key is on screen. The client is
+the one from `claude-gauges` in this repo, with the same rules: it never refreshes the
+token, and on a failure it backs off rather than retrying. The forecast is a straight
+line from the pace so far in the window. It says nothing until 5% of the window has
+passed. Window lengths (5 hours, 7 days) are assumed, because the endpoint only
+reports reset times.
+
 ### Ready-made profiles
 
 Installing the plugin also installs a profile for your device, so a working page is
@@ -43,7 +58,7 @@ ready before you place any keys:
 
 - **MK.2 / 15 keys:** sessions 1–4 with Overview, then sessions 5–8 with Inbox, then Needs You, Allow, Always, Deny and Use Terminal.
 - **Mini:** sessions 1–2 and Overview on top, with Needs You, Allow and Deny below.
-- **XL:** sessions 1–16 on the top two rows. Row 3 is left free for your own keys, and the bottom row holds Needs You, Allow, Always, Deny, Use Terminal, Inbox and Overview.
+- **XL:** sessions 1–16 on the top two rows, then weekly Bar, session Ring and weekly Forecast usage keys. The bottom row holds Needs You, Allow, Always, Deny, Use Terminal, Inbox and Overview.
 - **Stream Deck +:** sessions 1–4, then Needs You, Allow, Deny and Overview.
 
 Each device also gets an **answer page**: the question, its options as large keys,
