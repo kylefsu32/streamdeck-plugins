@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+	<head lang="en">
+		<meta charset="utf-8" />
+		<script src="https://sdpi-components.dev/releases/v4/sdpi-components.js"></script>
+	</head>
+	<body>
+		<sdpi-item label="App">
+			<sdpi-select setting="app" datasource="getApps" loading="Listing running apps…" hot-reload placeholder="Pick a running app"></sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="…or type a name">
+			<sdpi-textfield setting="app" type="text" placeholder="e.g. Xcode"></sdpi-textfield>
+		</sdpi-item>
+
+		<sdpi-item label="Show">
+			<sdpi-select setting="metric" default="cpu">
+				<option value="cpu">CPU</option>
+				<option value="memory">Memory</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Style">
+			<sdpi-select setting="style" default="graph">
+				<option value="graph">Live graph</option>
+				<option value="gauge">Gauge</option>
+				<option value="number">Big number</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Turn red above">
+			<sdpi-textfield setting="alertAbove" type="number" placeholder="off — value in % (or GB)"></sdpi-textfield>
+		</sdpi-item>
+
+		<sdpi-item label="Theme">
+			<sdpi-select setting="theme" default="graphite">
+				<option value="graphite">Graphite</option>
+				<option value="black">Black</option>
+				<option value="midnight">Midnight</option>
+				<option value="paper">Paper (light)</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Colour">
+			<sdpi-select setting="colour" default="">
+				<option value="">Default</option>
+				<option value="blue">Blue</option>
+				<option value="teal">Teal</option>
+				<option value="green">Green</option>
+				<option value="lime">Lime</option>
+				<option value="amber">Amber</option>
+				<option value="orange">Orange</option>
+				<option value="red">Red</option>
+				<option value="pink">Pink</option>
+				<option value="violet">Violet</option>
+				<option value="white">White</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Graph span">
+			<sdpi-range setting="graphSeconds" min="20" max="120" step="10" default="60" showlabels>
+				<span slot="min">20s</span>
+				<span slot="max">2m</span>
+			</sdpi-range>
+		</sdpi-item>
+
+		<sdpi-item label="On press">
+			<sdpi-select setting="press" default="monitor">
+				<option value="monitor">Open Activity Monitor</option>
+				<option value="cycle">Show next metric</option>
+				<option value="none">Nothing</option>
+			</sdpi-select>
+		</sdpi-item>
+	</body>
+</html>
