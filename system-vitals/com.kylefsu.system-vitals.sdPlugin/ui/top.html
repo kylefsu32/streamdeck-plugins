@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+	<head lang="en">
+		<meta charset="utf-8" />
+		<script src="https://sdpi-components.dev/releases/v4/sdpi-components.js"></script>
+	</head>
+	<body>
+		<sdpi-item label="Rank by">
+			<sdpi-select setting="metric" default="cpu">
+				<option value="cpu">CPU</option>
+				<option value="memory">Memory</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Apps">
+			<sdpi-range setting="count" min="1" max="5" step="1" default="3" showlabels>
+				<span slot="min">1</span>
+				<span slot="max">5</span>
+			</sdpi-range>
+		</sdpi-item>
+
+		<sdpi-item label="Theme">
+			<sdpi-select setting="theme" default="graphite">
+				<option value="graphite">Graphite</option>
+				<option value="black">Black</option>
+				<option value="midnight">Midnight</option>
+				<option value="paper">Paper (light)</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="Colour">
+			<sdpi-select setting="colour" default="">
+				<option value="">Default</option>
+				<option value="blue">Blue</option>
+				<option value="teal">Teal</option>
+				<option value="green">Green</option>
+				<option value="lime">Lime</option>
+				<option value="amber">Amber</option>
+				<option value="orange">Orange</option>
+				<option value="red">Red</option>
+				<option value="pink">Pink</option>
+				<option value="violet">Violet</option>
+				<option value="white">White</option>
+			</sdpi-select>
+		</sdpi-item>
+
+		<sdpi-item label="On press">
+			<sdpi-select setting="press" default="monitor">
+				<option value="monitor">Open Activity Monitor</option>
+				<option value="cycle">Show next metric</option>
+				<option value="none">Nothing</option>
+			</sdpi-select>
+		</sdpi-item>
+	</body>
+</html>

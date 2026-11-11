@@ -7,6 +7,7 @@ Custom Elgato Stream Deck plugins, one directory per plugin.
 | [claude-usage](./claude-usage/) | Claude Code usage as Apple Watch style activity rings, computed from local transcripts |
 | [claude-harness](./claude-harness/) | Your Claude Code sessions as a harness device shows them: working, done, needs you. Answer prompts from the deck |
 | [claude-gauges](./claude-gauges/) | Fill gauges for the 5-hour session and weekly limits, from Anthropic's usage endpoint (moved from streamdeck-claude-gauges) |
+| [system-vitals](./system-vitals/) | Live Mac system stats on keys: CPU, memory, GPU, disk, network, ping, battery, top apps |
 
 Each plugin is self-contained — its own `package.json`, build, and manifest.
 
